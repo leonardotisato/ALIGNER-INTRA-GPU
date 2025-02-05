@@ -610,22 +610,6 @@ __global__ void generate_lpo(char* seq, int* seq_offsets, int* nseq_offsets, int
 }
 
 
-__global__ void copy_result_sizes(int *nseq_offsets, int* res_size){
-
-	int myId = blockIdx.x;
-	int nseq;
-	if(myId == 0){
-		nseq = nseq_offsets[myId];
-		free(moves_y_global);
-	}else{
-		nseq = nseq_offsets[myId] - nseq_offsets[myId-1];
-	}
-	
-	res_size[myId] = dyn_len_global[myId] * nseq;
-}
-
-
-
 __global__ void compute_d_offsets(int i_seq_idx, int j_seq_idx, int* nseq_offsets) {
 	
 	if(g_space_exceeded) return;
