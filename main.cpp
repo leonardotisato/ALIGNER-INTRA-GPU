@@ -1,3 +1,8 @@
+// Genera grafo "complesso" (ora genera una sequenza) -> leggilo da file
+// Gestisci meglio generazione reads e collocazione nelle window -> leggile da file
+// Capisci meglio come avvengono gli allineamenti: differenza tra window e batch, etc...
+// Modifica TUTTO in modo da allocare solo lo spazio necessario
+
 #include <cuda_runtime.h>
 #include <chrono>
 #include <unistd.h>

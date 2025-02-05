@@ -23,9 +23,9 @@ struct MaxCell {
 };
 
 
-#define SL 1000
-#define MAXL 1000
-#define	WL 1000
+#define SL 10
+#define MAXL 10
+#define	WL 10
 
 __device__ int score(unsigned char i, unsigned char j) { return i == j ? MATCH : MISMATCH; }
 __device__ int gap_penalty_x(int pos, int max_gapl, int uses_global) { return (uses_global == 0 && pos == max_gapl + 1) ? 0 : GAP; }
