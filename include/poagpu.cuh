@@ -139,9 +139,9 @@ inline void gpu_POA_free(TaskRefs &T){
 
 void gpu_POA(vector<Task<vector<string>>> &input, TaskRefs &T, vector<Task<vector<string>>> &result_GPU, int res_gpu_offs) {
 	
-	int input_size = input.size();
-	int N_BL = (input_size - 1) / BDIM + 1;
-	int LAST_BATCH_SIZE = (input_size - 1) % BDIM + 1;
+	int input_size = input.size(); // prende il numero di task che è == numero di window
+	int N_BL = (input_size - 1) / BDIM + 1; // variabile dal dubbio significato (credo numero di batch) = ceil(input_size / BDIM)
+	int LAST_BATCH_SIZE = (input_size - 1) % BDIM + 1; 
 	int *space_exceeded = (int*)malloc(sizeof(int));
 
 	vector<vector<string>> result_data(input_size);

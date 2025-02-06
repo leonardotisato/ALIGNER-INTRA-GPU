@@ -16,7 +16,7 @@ void read_batch_2(vector<vector<string>> &batch, size_t size, string filename);
 
 vector<string> generate_random_window(int max_L, int min_L, int max_N);
 
-void get_bmean_batch_result_gpu(vector<vector<string>> windows, vector<vector<string>> &results, int &c, int max_s, int max_w);
+void get_bmean_batch_result_gpu(vector<vector<string>> windows, vector<vector<string>> &results, int &c /*, int max_s, int max_w*/);
 
 vector<vector<string>> get_random_sample(int batch_size, int max_L, int min_L, int max_N, int min_N);
 

@@ -3,6 +3,8 @@
 // Capisci meglio come avvengono gli allineamenti: differenza tra window e batch, etc...
 // Modifica TUTTO in modo da allocare solo lo spazio necessario
 
+// Traceback si o no? Linear gap penalty o affine gap penalty?
+
 #include <cuda_runtime.h>
 #include <chrono>
 #include <unistd.h>
@@ -32,27 +34,43 @@ typedef uint32_t kmer;
 
 // constexpr unsigned int n_threads = 80;
 
-void read_batch_2(vector<vector<string>> &batch, size_t size, string filename){
+void read_batch_2(vector<vector<string>> &reads, size_t size, string filename){
 
-    std::ifstream infile(filename);
-    std::string line;
-    int n = 0;
+	ifstream infile(filename);
     int i = 0;
-    while (getline(infile, line))
-    {
-        if (n == 0)
-        {
-            n = stoi(line);
-            batch.emplace_back(std::vector<std::string>());
-        }
-        else
-        {
-            batch.back().push_back(line);
-            n--;
-        }
-	i++;
+
+    if (!infile.is_open()) {
+        std::cerr << "Errore: Impossibile aprire il file " << filename << std::endl;
+        return;
     }
 
+    string line;
+    vector<string> readsVector;
+
+    // Lettura del file FASTA o simile
+    while (getline(infile, line)) {
+        // Rimozione spazi bianchi iniziali e finali
+        line.erase(0, line.find_first_not_of(" \t\n\r"));
+        if (!line.empty()) {
+            line.erase(line.find_last_not_of(" \t\n\r") + 1);
+        }
+
+        if (line.empty() || line[0] == '>') continue;
+
+        readsVector.push_back(line);         
+
+		i++;
+		if(i % size == 0) {
+			reads.push_back(readsVector);
+			readsVector.clear();
+		}
+    }
+
+	if (!readsVector.empty()) {
+        reads.push_back(readsVector);
+    }
+
+    infile.close();
 }
 
 int check_input_int(string &arg){
@@ -110,16 +128,22 @@ int main(int argc, char* argv[]) {
 		cout << "Invalid max window size provided" << endl;
 		return 0;
 	}
-	vector<vector<string>> input;
+	vector<vector<string>> reads;
 	
 	if(read_from_file){
 		string filepath(path_ref);
 		cout << "*** ATTEMPTING TO READ FROM " << filepath << " SAMPLE OF SIZE " << N_ALIGNMENTS << " ***" << endl;
-		read_batch_2(input, N_ALIGNMENTS, filepath);
-		cout << "Read " << input.size() << " alignments" << endl;
+		read_batch_2(reads, /*N_ALIGNMENTS*/ WLEN, filepath);
+		cout << "Read " << reads.size() << " alignments" << endl;
 	}else{
 	//	cout << "*** GENERATING RANDOM SAMPLE OF SIZE " << N_ALIGNMENTS << " ***" << endl;
-		input = get_random_sample(N_ALIGNMENTS, WLEN, MIN_WLEN, SEQ_LEN, MIN_SLEN);
+		reads = get_random_sample(N_ALIGNMENTS, WLEN, MIN_WLEN, SEQ_LEN, MIN_SLEN);
+	}
+
+	for(int i = 0; i < reads.size(); i++) {
+		for(int j = 0; j < reads[i].size(); j++) {
+			cout << reads[i][j] << endl;
+		}
 	}
 		
 	vector<vector<string>> result_GPU;
@@ -127,7 +151,7 @@ int main(int argc, char* argv[]) {
 	//SIMPLE GPU EXECUTION SINGLE KERNEL
 	int c = 0;
 
-	get_bmean_batch_result_gpu(input, result_GPU, c, SEQ_LEN, WLEN);
+	get_bmean_batch_result_gpu(reads, result_GPU, c /*, SEQ_LEN, WLEN*/);
 
 	
 	return 0;

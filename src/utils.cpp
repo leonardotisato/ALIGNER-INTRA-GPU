@@ -7,12 +7,12 @@
 #include "../include/poagpu.cuh"
 
 
-void get_bmean_batch_result_gpu(vector<vector<string>> windows, vector<vector<string>> &results, int &c, int max_s, int max_w){
+void get_bmean_batch_result_gpu(vector<vector<string>> windows, vector<vector<string>> &results, int &c /*, int max_s, int max_w*/){
 
-	poa_gpu_utils::TaskRefs T;
+	poa_gpu_utils::TaskRefs T;		// struct con dentro TUUUUUTTO
 	size_t size = windows.size();
 
-	vector<vector<string>> result_GPU;
+	// vector<vector<string>> result_GPU;
 	vector<poa_gpu_utils::Task<vector<string>>> gpu_tasks(size, poa_gpu_utils::Task<vector<string>>(0,0,vector<string>()));
 	vector<poa_gpu_utils::Task<vector<string>>> gpu_res(size, poa_gpu_utils::Task<vector<string>>(0,0,vector<string>()));
 	
@@ -36,6 +36,7 @@ void get_bmean_batch_result_gpu(vector<vector<string>> windows, vector<vector<st
 
 	auto end = NOW;
 	c = duration_cast<microseconds>(end - start).count();
+	std::cout << "Duration: " << c << " microseconds" << std::endl;
 
 	for(auto r : gpu_res){
 		results.push_back(r.task_data);
@@ -88,6 +89,7 @@ vector<vector<string>> get_random_sample(int batch_size, int max_L = MAX_L, int 
 	cout << "Sample generation: size=" << batch_size << ", L=[" << min_L << "," << max_L << "], N=[" << min_N << "," << max_N << "]\n";
 
 	for(int i = 0; i < batch_size; i++) {
+// PERCHE' NON EMPLACE_BACK ?? -------------------------------------------------------------------------------------------------
 		sample.push_back(generate_random_window(max_L, min_L, min_N, max_N));
 		// if(i % step == 0){ cout << "Generation: [" << perc << "%]\n"; perc += 10;  }
 	}
