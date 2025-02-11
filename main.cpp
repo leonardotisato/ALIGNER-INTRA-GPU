@@ -94,6 +94,12 @@ int check_input_int(string &arg){
 
 int main(int argc, char* argv[]) {
 
+	/* cambiato il nome di WLEN in NUM_BLOCKS, la modifica, qua visiva deve essere apportata, sia fisicamente, 
+	che nelle implementazioni delle altre funzioni nel resto del codice (potrebbe proprio cambiare la logica
+	di alcune funzioni)*/
+
+	// N_ALIGNMENTS è prob inutile, il numero di reads è da calcolare in qualche modo non ancora scritto (ma banale)
+
 	bool read_from_file = false;
 	char* path_ref;	
 	
@@ -108,19 +114,19 @@ int main(int argc, char* argv[]) {
 	}
 	
 	string max_seq_size = argv[1];
-	const int SEQ_LEN = check_input_int(max_seq_size);		
+	const int MAX_SEQ_LEN = check_input_int(max_seq_size);		
 	
 	string max_w_size = argv[2];
-	const int WLEN = check_input_int(max_w_size);		
+	const int NUM_BLOCKS = check_input_int(max_w_size);		
 	
 	string sample_size = argv[3];
 	const int N_ALIGNMENTS = check_input_int(sample_size);		
 
-	if(SEQ_LEN < 0){
+	if(MAX_SEQ_LEN < 0){
 		cout << "Invalid max sequence length provided" << endl;
 		return 0;
 	}
-	if(WLEN < 0){
+	if(NUM_BLOCKS < 0){
 		cout << "Invalid max window size provided" << endl;
 		return 0;
 	}
@@ -133,14 +139,17 @@ int main(int argc, char* argv[]) {
 	if(read_from_file){
 		string filepath(path_ref);
 		cout << "*** ATTEMPTING TO READ FROM " << filepath << " SAMPLE OF SIZE " << N_ALIGNMENTS << " ***" << endl;
-		read_batch_2(reads, /*N_ALIGNMENTS*/ WLEN, filepath);
+		read_batch_2(reads, /*N_ALIGNMENTS*/ NUM_BLOCKS, filepath);
 		cout << "Read " << reads.size() << " alignments" << endl;
 	}else{
 	//	cout << "*** GENERATING RANDOM SAMPLE OF SIZE " << N_ALIGNMENTS << " ***" << endl;
-		reads = get_random_sample(N_ALIGNMENTS, WLEN, MIN_WLEN, SEQ_LEN, MIN_SLEN);
+		reads = get_random_sample(N_ALIGNMENTS, NUM_BLOCKS, MIN_WLEN, MAX_SEQ_LEN, MIN_SLEN);
 	}
 
+
+	// printing reads
 	for(int i = 0; i < reads.size(); i++) {
+		cout << "Batch " << i << endl;
 		for(int j = 0; j < reads[i].size(); j++) {
 			cout << reads[i][j] << endl;
 		}
@@ -151,7 +160,7 @@ int main(int argc, char* argv[]) {
 	//SIMPLE GPU EXECUTION SINGLE KERNEL
 	int c = 0;
 
-	get_bmean_batch_result_gpu(reads, result_GPU, c /*, SEQ_LEN, WLEN*/);
+	get_bmean_batch_result_gpu(reads, result_GPU, c /*, MAX_SEQ_LEN, NUM_BLOCKS*/);
 
 	
 	return 0;

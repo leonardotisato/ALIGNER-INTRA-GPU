@@ -23,9 +23,11 @@ struct MaxCell {
 };
 
 
-#define SL 10
+#define SL 32
 #define MAXL 10
 #define	WL 10
+
+static const int NOT_ALIGNED = -1;
 
 __device__ int score(unsigned char i, unsigned char j) { return i == j ? MATCH : MISMATCH; }
 __device__ int gap_penalty_x(int pos, int max_gapl, int uses_global) { return (uses_global == 0 && pos == max_gapl + 1) ? 0 : GAP; }
@@ -200,10 +202,99 @@ __global__ void init_diagonals(int i_seq_idx, int j_seq_idx, int max_gapl, int u
 	}
 }
 
+__device__ void trace_back_lpo_alignment(int len_x, int len_y, unsigned char* move_x, unsigned char* move_y, Edge* x_left, Edge* y_left,
+					 int* start_x, int* start_y, int best_x, int best_y, int* x_to_y, int* y_to_x, int* d_offsets) {
 
+	int xmove, ymove;
+	Edge left;
+	
+	for (int i = 0; i < len_x; i++) {
+		x_to_y[i] = (int)NOT_ALIGNED;
+	}
+
+	for (int i = 0; i < len_y; i++) {
+		y_to_x[i] = (int)NOT_ALIGNED;
+	}
+
+	while (best_x >= 0 && best_y >= 0) {
+		
+		int diagonal = best_x + best_y + 2;
+		int offset = (diagonal <= len_y) ? best_x+1 : best_x+1 - (diagonal - len_y); 
+		xmove = (move_x+d_offsets[diagonal])[offset];
+		ymove = (move_y+d_offsets[diagonal])[offset];
+
+		if (xmove > 0 && ymove > 0) { /* ALIGNED! MAP best_x <--> best_y */
+			x_to_y[best_x] = best_y;
+			y_to_x[best_y] = best_x;
+		}
+
+		if (xmove == 0 && ymove == 0) { /* FIRST ALIGNED PAIR */
+			x_to_y[best_x] = best_y;
+			y_to_x[best_y] = best_x;
+			break;  /* FOUND START OF ALIGNED REGION, SO WE'RE DONE */
+		}
+
+		if (xmove > 0) { /* TRACE BACK ON X */
+			int start = start_x[best_x];
+			while ((--xmove) > 0) {
+				start++;
+			}
+			left = x_left[start];
+			best_x = left;
+		}
+
+		if (ymove > 0) { /* TRACE BACK ON Y */
+			int start = start_y[best_y];
+			while ((--ymove) > 0) {
+				start++;
+			}
+			left = y_left[start];
+			best_y = left;
+		}
+	}
+	return;
+}
+
+__inline__ __device__ MaxCell wrapReduceMax(MaxCell cell){
+	
+	for(int offset = wrapSize / 2; offset > 0; offset /= 2){
+		short val = __shfl_down_sync(FULL_MASK, cell.val, offset);
+		int x = __shfl_down_sync(FULL_MASK, cell.x, offset);
+		int y = __shfl_down_sync(FULL_MASK, cell.y, offset);
+		int is_max = val >= cell.val && ( val > cell.val | x < cell.x | y < cell.y );
+		cell.val = is_max ? val : cell.val;
+		cell.x = is_max ? x : cell.x;
+		cell.y = is_max ? y : cell.y;
+	}
+	return cell;
+}
+
+template<int N_WRAPS>
+__inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
+	
+	static __shared__ MaxCell shared_max[N_WRAPS];
+	int lane = threadIdx.x % warpSize;
+	int wid = threadIdx.x / warpSize;
+	
+	cell = wrapReduceMax(cell);
+	
+	if(lane == 0){
+		shared_max[wid] = cell;	
+	}
+	__syncthreads();
+
+	MaxCell zero_cell = { -999999, -1, -1 };
+	cell = (threadIdx.x < blockDim.x / warpSize) ? shared_max[lane] : zero_cell;
+	
+	if(wid == 0) {
+		cell = wrapReduceMax(cell);
+	}
+	return cell;
+}
 
  __global__ void sw_align(int i_seq_idx, int j_seq_idx, int max_gapl, int uses_global, int* nseq_offsets) {
 	
+	printf("%d\n", threadIdx.x);
 	if(g_space_exceeded) return;
 
 	int myId = blockIdx.x;
@@ -237,264 +328,267 @@ __global__ void init_diagonals(int i_seq_idx, int j_seq_idx, int max_gapl, int u
 	
 	
 	if(j_seq_idx < nseq){
-	
-	y_seq_offs = lpo_offsets[block_offset + j_seq_idx-1];
-	y_edge_offs = lpo_edge_offsets[block_offset + j_seq_idx-1];
-	len_y = lpo_offsets[block_offset + j_seq_idx] - lpo_offsets[block_offset + j_seq_idx-1];
-	
-	int global_seq_idx_y = block_offset + j_seq_idx;
-	
-	int c = threadIdx.x;
-
-	// if(myId == 0 && threadIdx.x  == 0) {
-	// 	printf("Nseq %d\t blockoff %d\t lenx %d\n", nseq, block_offset, len_x);
-	// 	printf("yseqoff %d\t yedgeoff %d\t leny %d\n", y_seq_offs, y_edge_offs, len_y);
-	// }
-
-	__shared__ unsigned char* seq_x;
-	__shared__ unsigned char* end_list_x;
-	__shared__ unsigned char* end_list_y;
-	__shared__ int* x_to_y;
-	__shared__ int* y_to_x;
-	__shared__ short* diagonals_sc;
-	__shared__ short* diagonals_gx;
-	__shared__ short* diagonals_gy;
-	__shared__ unsigned char* moves_x;
-	__shared__ unsigned char* moves_y;
-
-	if(c==0){
-		seq_x = dyn_letters_global + MAXL * myId;
-		end_list_x = dyn_end_nodes_global + MAXL * myId;
-		end_list_y = end_nodes + y_seq_offs;
-		x_to_y= x_to_ys + MAXL * myId;
-		y_to_x = y_to_xs + MAXL * myId;
-		diagonals_sc = diagonals_sc_global + (MAXL+1)*(SL+1) * myId;
-		diagonals_gx = diagonals_gx_global + (MAXL+1)*(SL+1) * myId; 
-		diagonals_gy = diagonals_gy_global + (MAXL+1)*(SL+1) * myId;
-		moves_x = moves_x_global + (MAXL+1)*(SL+1) * myId;
-		moves_y = moves_y_global + (MAXL+1)*(SL+1) * myId;
-	}
-	__syncthreads();
-
-	static __shared__ int lx_start[MAXL+1];
-	static __shared__ int ly_start[SL+1];
-	static __shared__ int d_offsets[MAXL+SL+1];
-	static __shared__ Edge left_x[MAXL*EDGE_F];
-	static __shared__ Edge left_y[SL*EDGE_F];
-	static __shared__ unsigned char seq_y[SL];
-	
-	int offs = 0;
-	do{
-		if(offs + c < len_x+1){
-			lx_start[offs + c] = (dyn_edge_bounds_global + (MAXL+1) * myId)[offs+c];
-		}	
-		offs += SL+1;
-	}while(offs < len_x+1);
-
-	if(c < len_y+1){
-		ly_start[c] = (edge_bounds + y_seq_offs + global_seq_idx_y)[c];
-	}
-	__syncthreads();
-	int x_left_dim = lx_start[len_x];
-	int y_left_dim = ly_start[len_y];
-
-	offs = 0;
-	do{
-		if(offs + c < x_left_dim){
-			left_x[offs+c] = (dyn_edges_global + MAXL * EDGE_F * myId)[offs+c];
-		}
-		offs +=SL+1;
-	}while(offs < x_left_dim);
-
-	offs = 0;
-	do{
-		if(offs + c < y_left_dim){
-			left_y[offs+c] = (lpo_edges + y_edge_offs)[offs+c];
-		}
-		offs +=SL+1;
-	}while(offs < y_left_dim);
-	
-	if(c < len_y){
-		seq_y[c] = (lpo_letters + y_seq_offs)[c];
-	}
-
-	offs = 0;
-	do{
-		if(offs + c < len_x+len_y+1){
-			d_offsets[c+offs] = (d_offsets_global + (MAXL+SL+1) * myId)[c+offs];
-		}
-		offs += SL+1;
-	}while(offs < len_x+len_y+1);
-	
-	MaxCell max = { -999999, -1, -1 };
-	int min_d = len_x < len_y ? len_x : len_y;
-
-	__syncthreads();
-
-
-
-// n: Indica il numero della diagonale corrente nella matrice di allineamento.
-// Va da 2 (prima diagonale effettiva) a len_x + len_y (ultima diagonale).
-// Ogni diagonale contiene celle corrispondenti a una combinazione di indici delle due sequenze X e Y.
-	for (int n = 2; n < len_x + len_y + 1; n++) {
-
-
-// lower_bound: Limite inferiore per gli indici validi nella diagonale corrente.
-// upper_bound: Limite superiore per gli indici validi nella diagonale corrente.
-// La diagonale ha dimensioni che dipendono da len_x (lunghezza della sequenza X) e len_y (lunghezza della sequenza Y (grafo)).
-		int lower_bound = n <= len_y;
-		int upper_bound = min_d+lower_bound < n ? min_d+lower_bound : n;
-		upper_bound = upper_bound < len_x + len_y + 1 - n ? upper_bound : len_x + len_y + 1 - n;
 		
+		y_seq_offs = lpo_offsets[block_offset + j_seq_idx-1];
+		y_edge_offs = lpo_edge_offsets[block_offset + j_seq_idx-1];
+		len_y = lpo_offsets[block_offset + j_seq_idx] - lpo_offsets[block_offset + j_seq_idx-1];
+		
+		int global_seq_idx_y = block_offset + j_seq_idx;
+		
+		int c = threadIdx.x;
 
-		// condizione per attivare solo "i thread giusti"
-		if (c >= lower_bound && c < upper_bound) {
+		// if(myId == 0 && threadIdx.x  == 0) {
+		// 	printf("Nseq %d\t blockoff %d\t lenx %d\n", nseq, block_offset, len_x);
+		// 	printf("yseqoff %d\t yedgeoff %d\t leny %d\n", y_seq_offs, y_edge_offs, len_y);
+		// }
 
-			int match_score = ((uses_global == 0)-1) & (-999999);
-			int match_x = 0;
-			int match_y = 0;
+		__shared__ unsigned char* seq_x;
+		__shared__ unsigned char* end_list_x;
+		__shared__ unsigned char* end_list_y;
+		__shared__ int* x_to_y;
+		__shared__ int* y_to_x;
+		__shared__ short* diagonals_sc;
+		__shared__ short* diagonals_gx;
+		__shared__ short* diagonals_gy;
+		__shared__ unsigned char* moves_x;
+		__shared__ unsigned char* moves_y;
 
-			int insert_x_score = -999999;
-			int insert_y_score = -999999;
-			int insert_x_x = 0;
-			int insert_y_y = 0;
-			int insert_x_gap = 0;
-			int insert_y_gap = 0;
-
-			int try_score = -999999;
-			
-			int j = c + (((n - len_y < 0)-1) & (n - len_y));
-			int i = n - j;
-
-			int possible_end_cell = uses_global == 0 ||
-				(end_list_x[j - 1] == 0 && end_list_y[i - 1] == 0); 
-
-
-// ly_start: Indici che delimitano i nodi della sequenza Y per ogni riga.
-// left_y: Lista di archi uscenti (in memoria condivisa) che rappresentano i predecessori di un nodo in Y.
-// try_score: Punteggio candidato ottenuto considerando un predecessore.
-// gap_penalty_y: Funzione che calcola il costo aggiuntivo per un gap in Y.
-			int k = ly_start[i-1];
-			for (int y_count = 1; k < ly_start[i]; k++, y_count++) {
-
-				int i_prev = left_y[k] + 1;
-				int k = ((0 > i_prev + j - len_y)-1) & (i_prev + j - len_y);
-				int n_prev = i_prev + j;
-				int c_prev = j - k;
-				int prev_gy;
-
-				try_score = (diagonals_sc + d_offsets[n_prev])[c_prev];
-				prev_gy = (diagonals_gy + d_offsets[n_prev])[c_prev];
-				try_score -= gap_penalty_y(prev_gy, max_gapl, uses_global);
-				
-				if (try_score > insert_y_score) {
-					insert_y_score = try_score;
-					insert_y_y = y_count;
-					insert_y_gap = prev_gy;
-				}
-
-			}
-
-
-// analogo
-			k = lx_start[j - 1];
-			for (int x_count = 1; k < lx_start[j]; k++, x_count++) {
-
-				Edge xl = left_x[k];
-				int j_prev = xl + 1;
-				int k = ((0 > j_prev + i - len_y)-1) & (j_prev + i - len_y);
-				int n_prev = j_prev + i;
-				int c_prev = j_prev - k;
-				int prev_gx;
-
-				try_score = (diagonals_sc + d_offsets[n_prev])[c_prev];
-				prev_gx = (diagonals_gx + d_offsets[n_prev])[c_prev];
-				try_score -= gap_penalty_x(prev_gx, max_gapl, uses_global);
-				
-				if (try_score > insert_x_score) {
-					insert_x_score = try_score;
-					insert_x_x = x_count;
-					insert_x_gap = prev_gx;
-				}
-
-				k = ly_start[i-1];
-				for (int y_count = 1; k < ly_start[i]; k++, y_count++) {
-
-					int i_prev = left_y[k] + 1;
-					int k = ((0 > i_prev + j_prev - len_y)-1) & (i_prev + j_prev - len_y);
-					int n_prev = i_prev + j_prev;
-					int c_prev = j_prev - k;
-
-					try_score = (diagonals_sc + d_offsets[n_prev])[c_prev];	
-
-					if (try_score > match_score) {
-						match_score = try_score;
-						match_x = x_count;
-						match_y = y_count;
-					}
-				}
-			}
-
-			match_score += score(seq_x[j - 1], seq_y[i - 1]); 
-			
-			unsigned char my_move_x; 
-			unsigned char my_move_y; 
-			
-			short my_score;
-			short my_gx; 
-			short my_gy; 
-			
-			int match_mask = (match_score <= insert_y_score || match_score <= insert_x_score)-1;
-			int ins_x_mask = (insert_x_score < match_score || insert_x_score <= insert_y_score)-1;
-			int ins_y_mask = (insert_y_score < match_score || insert_y_score < insert_x_score)-1;
-
-			my_score = (match_score & match_mask) + (insert_x_score & ins_x_mask) + (insert_y_score & ins_y_mask);
-			
-			my_gx = 0 + (next_gap(insert_x_gap, max_gapl, uses_global) & ins_x_mask) + 
-				     (next_perp_gap(insert_y_gap, max_gapl, uses_global) & ins_y_mask);
-			
-			my_gy = 0 + (next_perp_gap(insert_x_gap, max_gapl, uses_global) & ins_x_mask) + 
-				     (next_gap(insert_y_gap, max_gapl, uses_global) & ins_y_mask);
-			
-			my_move_x = (match_x & match_mask) + (insert_x_x & ins_x_mask) + 0;
-			
-			my_move_y = (match_y & match_mask) + (insert_y_y & ins_y_mask) + 0;
-			
-			if (possible_end_cell && my_score >= max.val) {
-				if (my_score > max.val ||
-					(j-1 == max.x && i-1 < max.y) || j-1 < max.x) {
-					max.val = my_score;
-					max.x = j-1;
-					max.y = i-1;
-				}
-			}
-			(moves_x+d_offsets[n])[c] = my_move_x;
-			(moves_y+d_offsets[n])[c] = my_move_y;
-			(diagonals_sc + d_offsets[n])[c] = my_score;
-			(diagonals_gx + d_offsets[n])[c] = my_gx;
-			(diagonals_gy + d_offsets[n])[c] = my_gy;		
-				
+		if(c==0){
+			seq_x = dyn_letters_global + MAXL * myId;
+			end_list_x = dyn_end_nodes_global + MAXL * myId;
+			end_list_y = end_nodes + y_seq_offs;
+			x_to_y= x_to_ys + MAXL * myId;
+			y_to_x = y_to_xs + MAXL * myId;
+			diagonals_sc = diagonals_sc_global + (MAXL+1)*(SL+1) * myId;
+			diagonals_gx = diagonals_gx_global + (MAXL+1)*(SL+1) * myId; 
+			diagonals_gy = diagonals_gy_global + (MAXL+1)*(SL+1) * myId;
+			moves_x = moves_x_global + (MAXL+1)*(SL+1) * myId;
+			moves_y = moves_y_global + (MAXL+1)*(SL+1) * myId;
 		}
 		__syncthreads();
 
-		// aaggiunto da me: solo un thread stampa la diagonale corrente
-        if (threadIdx.x == 0 && blockIdx.x == 0) {
-			int end = (n<(len_x + len_y)) ? d_offsets[n + 1] : (len_x+1) *(len_y+1);
-            printf("Diagonal %d, (%d %d %d): ", n, d_offsets[n], d_offsets[n + 1], end);
-            for (int d = d_offsets[n]; d < end; d++) {
-                printf("(%d %d)", diagonals_sc[d], d);
-            }
-            printf("\n");
-        }
-        __syncthreads();
-    }
+		static __shared__ int lx_start[MAXL+1];
+		static __shared__ int ly_start[SL+1];
+		static __shared__ int d_offsets[MAXL+SL+1];
+		static __shared__ Edge left_x[MAXL*EDGE_F];
+		static __shared__ Edge left_y[SL*EDGE_F];
+		static __shared__ unsigned char seq_y[SL];
+		
+		int offs = 0;
+		do{
+			if(offs + c < len_x+1){
+				lx_start[offs + c] = (dyn_edge_bounds_global + (MAXL+1) * myId)[offs+c];
+			}	
+			offs += SL+1;
+		}while(offs < len_x+1);
 
-	// max = blockReduceMax<(SL+1) / wrapSize>(max);
-	
-	// if(c==0){
-	// 	trace_back_lpo_alignment<SL, MAXL, WL>(len_x, len_y, moves_x, moves_y, left_x, left_y, lx_start, ly_start, 
-	// 						     max.x, max.y, x_to_y, y_to_x, d_offsets);
-	// }
+		if(c < len_y+1){
+			ly_start[c] = (edge_bounds + y_seq_offs + global_seq_idx_y)[c];
+		}
+		__syncthreads();
+		int x_left_dim = lx_start[len_x];
+		int y_left_dim = ly_start[len_y];
+
+		offs = 0;
+		do{
+			if(offs + c < x_left_dim){
+				left_x[offs+c] = (dyn_edges_global + MAXL * EDGE_F * myId)[offs+c];
+			}
+			offs +=SL+1;
+		}while(offs < x_left_dim);
+
+		offs = 0;
+		do{
+			if(offs + c < y_left_dim){
+				left_y[offs+c] = (lpo_edges + y_edge_offs)[offs+c];
+			}
+			offs +=SL+1;
+		}while(offs < y_left_dim);
+		
+		if(c < len_y){
+			seq_y[c] = (lpo_letters + y_seq_offs)[c];
+		}
+
+		offs = 0;
+		do{
+			if(offs + c < len_x+len_y+1){
+				d_offsets[c+offs] = (d_offsets_global + (MAXL+SL+1) * myId)[c+offs];
+			}
+			offs += SL+1;
+		}while(offs < len_x+len_y+1);
+		
+		MaxCell max = { -999999, -1, -1 };
+		int min_d = len_x < len_y ? len_x : len_y;
+
+		__syncthreads();
+
+
+		// printf(": %d\n", c);
+	// n: Indica il numero della diagonale corrente nella matrice di allineamento.
+	// Va da 2 (prima diagonale effettiva) a len_x + len_y (ultima diagonale).
+	// Ogni diagonale contiene celle corrispondenti a una combinazione di indici delle due sequenze X e Y.
+		for (int n = 2; n < len_x + len_y + 1; n++) {
+
+
+	// lower_bound: Limite inferiore per gli indici validi nella diagonale corrente.
+	// upper_bound: Limite superiore per gli indici validi nella diagonale corrente.
+	// La diagonale ha dimensioni che dipendono da len_x (lunghezza della sequenza X) e len_y (lunghezza della sequenza Y (grafo)).
+			int lower_bound = n <= len_y;
+			int upper_bound = min_d+lower_bound < n ? min_d+lower_bound : n;
+			upper_bound = upper_bound < len_x + len_y + 1 - n ? upper_bound : len_x + len_y + 1 - n;
+			
+
+			// condizione per attivare solo "i thread giusti"
+			printf("%d\n", c);
+			if (c >= lower_bound && c < upper_bound) {
+
+				int match_score = ((uses_global == 0)-1) & (-999999);
+				int match_x = 0;
+				int match_y = 0;
+
+				int insert_x_score = -999999;
+				int insert_y_score = -999999;
+				int insert_x_x = 0;
+				int insert_y_y = 0;
+				int insert_x_gap = 0;
+				int insert_y_gap = 0;
+
+				int try_score = -999999;
+				
+				int j = c + (((n - len_y < 0)-1) & (n - len_y));
+				int i = n - j;
+
+				int possible_end_cell = uses_global == 0 ||
+					(end_list_x[j - 1] == 0 && end_list_y[i - 1] == 0); 
+
+
+	// ly_start: Indici che delimitano i nodi della sequenza Y per ogni riga.
+	// left_y: Lista di archi uscenti (in memoria condivisa) che rappresentano i predecessori di un nodo in Y.
+	// try_score: Punteggio candidato ottenuto considerando un predecessore.
+	// gap_penalty_y: Funzione che calcola il costo aggiuntivo per un gap in Y.
+				int k = ly_start[i-1];
+				for (int y_count = 1; k < ly_start[i]; k++, y_count++) {
+
+					int i_prev = left_y[k] + 1;
+					int k = ((0 > i_prev + j - len_y)-1) & (i_prev + j - len_y);
+					int n_prev = i_prev + j;
+					int c_prev = j - k;
+					int prev_gy;
+
+					try_score = (diagonals_sc + d_offsets[n_prev])[c_prev];
+					prev_gy = (diagonals_gy + d_offsets[n_prev])[c_prev];
+					try_score -= gap_penalty_y(prev_gy, max_gapl, uses_global);
+					
+					if (try_score > insert_y_score) {
+						insert_y_score = try_score;
+						insert_y_y = y_count;
+						insert_y_gap = prev_gy;
+					}
+
+				}
+
+
+	// analogo
+				k = lx_start[j - 1];
+				for (int x_count = 1; k < lx_start[j]; k++, x_count++) {
+
+					Edge xl = left_x[k];
+					int j_prev = xl + 1;
+					int k = ((0 > j_prev + i - len_y)-1) & (j_prev + i - len_y);
+					int n_prev = j_prev + i;
+					int c_prev = j_prev - k;
+					int prev_gx;
+
+					try_score = (diagonals_sc + d_offsets[n_prev])[c_prev];
+					prev_gx = (diagonals_gx + d_offsets[n_prev])[c_prev];
+					try_score -= gap_penalty_x(prev_gx, max_gapl, uses_global);
+					
+					if (try_score > insert_x_score) {
+						insert_x_score = try_score;
+						insert_x_x = x_count;
+						insert_x_gap = prev_gx;
+					}
+
+					k = ly_start[i-1];
+					for (int y_count = 1; k < ly_start[i]; k++, y_count++) {
+
+						int i_prev = left_y[k] + 1;
+						int k = ((0 > i_prev + j_prev - len_y)-1) & (i_prev + j_prev - len_y);
+						int n_prev = i_prev + j_prev;
+						int c_prev = j_prev - k;
+
+						try_score = (diagonals_sc + d_offsets[n_prev])[c_prev];	
+
+						if (try_score > match_score) {
+							match_score = try_score;
+							match_x = x_count;
+							match_y = y_count;
+						}
+					}
+				}
+
+				match_score += score(seq_x[j - 1], seq_y[i - 1]); 
+				
+				unsigned char my_move_x; 
+				unsigned char my_move_y; 
+				
+				short my_score;
+				short my_gx; 
+				short my_gy; 
+				
+				int match_mask = (match_score <= insert_y_score || match_score <= insert_x_score)-1;
+				int ins_x_mask = (insert_x_score < match_score || insert_x_score <= insert_y_score)-1;
+				int ins_y_mask = (insert_y_score < match_score || insert_y_score < insert_x_score)-1;
+
+				my_score = (match_score & match_mask) + (insert_x_score & ins_x_mask) + (insert_y_score & ins_y_mask);
+				
+				my_gx = 0 + (next_gap(insert_x_gap, max_gapl, uses_global) & ins_x_mask) + 
+						(next_perp_gap(insert_y_gap, max_gapl, uses_global) & ins_y_mask);
+				
+				my_gy = 0 + (next_perp_gap(insert_x_gap, max_gapl, uses_global) & ins_x_mask) + 
+						(next_gap(insert_y_gap, max_gapl, uses_global) & ins_y_mask);
+				
+				my_move_x = (match_x & match_mask) + (insert_x_x & ins_x_mask) + 0;
+				
+				my_move_y = (match_y & match_mask) + (insert_y_y & ins_y_mask) + 0;
+				
+				if (possible_end_cell && my_score >= max.val) {
+					if (my_score > max.val ||
+						(j-1 == max.x && i-1 < max.y) || j-1 < max.x) {
+						max.val = my_score;
+						max.x = j-1;
+						max.y = i-1;
+					}
+				}
+				(moves_x+d_offsets[n])[c] = my_move_x;
+				(moves_y+d_offsets[n])[c] = my_move_y;
+				(diagonals_sc + d_offsets[n])[c] = my_score;
+				(diagonals_gx + d_offsets[n])[c] = my_gx;
+				(diagonals_gy + d_offsets[n])[c] = my_gy;		
+					
+			}
+			__syncthreads();
+
+			// aaggiunto da me: solo un thread stampa la diagonale corrente
+			// printf("Hello\n");
+			if (threadIdx.x == 0 && blockIdx.x == 0) {
+				printf("Printing DP Matrix: \n");
+				int end = (n<(len_x + len_y)) ? d_offsets[n + 1] : (len_x+1) *(len_y+1);
+				printf("Diagonal %d, (%d %d %d): ", n, d_offsets[n], d_offsets[n + 1], end);
+				for (int d = d_offsets[n]; d < end; d++) {
+					printf("(%d %d)", diagonals_sc[d], d);
+				}
+				printf("\n");
+			}
+			__syncthreads();
+		}
+
+		max = blockReduceMax<(SL+1) / wrapSize>(max);
+		
+		if(c==0){
+			trace_back_lpo_alignment(len_x, len_y, moves_x, moves_y, left_x, left_y, lx_start, ly_start, 
+									max.x, max.y, x_to_y, y_to_x, d_offsets);
+		}
 
 	}//thread execution if-end
 	
@@ -544,6 +638,8 @@ __device__ inline unsigned char bp_map(char c) {
 
 __global__ void generate_lpo(char* seq, int* seq_offsets, int* nseq_offsets, int seq_idx) {
 
+	// ogni thread si occupa di un carattere della sequenza, ogni blocco di una sequenza
+
 	int myTId = threadIdx.x;
 	int myId = blockIdx.x;
 	
@@ -557,6 +653,7 @@ __global__ void generate_lpo(char* seq, int* seq_offsets, int* nseq_offsets, int
 	if(myId == 0){
 		block_offset = 0;
 		n_seq = nseq_offsets[myId];
+		if(myTId == 0 && seq_idx == 0) {for(int i = 0; i < 4; i++) { printf("%d ", nseq_offsets[myId + i]);}} 
 	}else{
 		block_offset = nseq_offsets[myId-1];
 		n_seq = nseq_offsets[myId] - nseq_offsets[myId-1];

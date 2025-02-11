@@ -15,7 +15,7 @@
 #define DEBUG 1
 
 
-#define SL 10
+#define SL 32
 #define MAXL 10
 #define	WL 10
 #define BDIM 10
@@ -39,6 +39,7 @@ inline void gpuAssert(cudaError_t code, const char* file, int line, bool abort =
 	}
 }
 
+static const int NOT_ALIGNED = -1;
 
 void init_kernel_block_parameters(vector<Task<vector<string>>> &window_batch, char** sequences, vector<int> &nseq_offsets, vector<int> &seq_offsets, int* tot_nseq, int first_el) {
 	
@@ -162,6 +163,8 @@ void gpu_POA(vector<Task<vector<string>>> &input, TaskRefs &T, vector<Task<vecto
 
 	for(int b = 0; b < N_BL; b++){
 
+		cout << b << "th iteration" << endl;
+
 		int block_offset = b * BDIM;
 		int BLOCKS;
 		if(b == N_BL-1){
@@ -191,12 +194,28 @@ void gpu_POA(vector<Task<vector<string>>> &input, TaskRefs &T, vector<Task<vecto
 		for(int i = 0; i < WL; i++){
 			generate_lpo<<<BLOCKS, SL+1>>>(T.sequences_d, T.seq_offsets_d, T.nseq_offsets_d, i);
 		}
+
+		// print LPO
+		// for (int b = 0; b < BLOCKS; ++b) {
+		// 	int block_offset = (b == 0) ? 0 : T.nseq_offsets[b - 1];
+		// 	int seq_len = (block_offset + i == 0) ? T.seq_offsets[block_offset + i] :
+		// 				T.seq_offsets[block_offset + i] - T.seq_offsets[block_offset + i - 1];
+
+		// 	std::cout << "Block " << b << ", Sequence " << i << ": ";
+		// 	for (int i = 0; i < seq_len; ++i) {
+		// 		std::cout << T.sequences[block_offset + i];
+		// 	}
+		// 	std::cout << std::endl;
+		// }
+
 		
 		int i_seq_idx = 0;
 		
 		printf("\n\nGRAPH CREATED --> BEGIN ALIGNMENT\n");
 
 		cudaStreamSynchronize(0);
+
+		// parametro 3 da sostituire !!!
 				
 		compute_d_offsets<<<BLOCKS, 1>>>(i_seq_idx, 3, T.nseq_offsets_d);
 		
