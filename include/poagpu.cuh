@@ -39,9 +39,58 @@ inline void gpuAssert(cudaError_t code, const char* file, int line, bool abort =
 	}
 }
 
+
+inline void gpu_POA_alloc(TaskRefs &T){
+
+	T.result = (char*)malloc(WL * MAXL * BDIM);
+	T.res_size = (int*)malloc(BDIM * sizeof(int));
+
+	cudaErrchk(cudaMalloc(&T.space_exceeded, sizeof(int)));
+
+	cudaErrchk(cudaMalloc(&T.dyn_len_global_d, (unsigned long long)BDIM * sizeof(int)));
+
+	cudaErrchk(cudaMalloc(&T.sequences_d, (unsigned long long)SL * WL * BDIM)); 
+	cudaErrchk(cudaMalloc(&T.seq_offsets_d, (unsigned long long)BDIM * WL * sizeof(int))); 
+	cudaErrchk(cudaMalloc(&T.nseq_offsets_d, (unsigned long long)BDIM * sizeof(int))); 
+	cudaErrchk(cudaMalloc(&T.result_d, (unsigned long long)MAXL * WL * BDIM)); 
+	cudaErrchk(cudaMalloc(&T.res_size_d, (unsigned long long)BDIM * sizeof(int)));
+
+	cudaErrchk(cudaMalloc(&T.lpo_edge_offsets_d, (unsigned long long)WL * BDIM * sizeof(int)));
+	cudaErrchk(cudaMalloc(&T.lpo_letters_d, (unsigned long long)WL * SL * BDIM));
+	cudaErrchk(cudaMalloc(&T.lpo_edges_d, (unsigned long long)WL * SL * EDGE_F * BDIM * sizeof(Edge)));
+	cudaErrchk(cudaMalloc(&T.edge_bounds_d, (unsigned long long)WL * (SL+1) * BDIM * sizeof(int)));	
+	cudaErrchk(cudaMalloc(&T.end_nodes_d, (unsigned long long)WL * SL * BDIM));
+	cudaErrchk(cudaMalloc(&T.sequence_ids_d, (unsigned long long)WL * WL * SL * BDIM));
+
+	cudaErrchk(cudaMalloc(&T.dyn_letters_global_d, (unsigned long long)MAXL * BDIM));
+	cudaErrchk(cudaMalloc(&T.dyn_edges_global_d, (unsigned long long)MAXL * EDGE_F * BDIM * sizeof(Edge)));
+	cudaErrchk(cudaMalloc(&T.dyn_edge_bounds_global_d, (unsigned long long)(MAXL+1) * BDIM * sizeof(int)));
+	cudaErrchk(cudaMalloc(&T.dyn_end_nodes_global_d, (unsigned long long)MAXL * BDIM));
+	cudaErrchk(cudaMalloc(&T.dyn_sequence_ids_global_d, (unsigned long long)WL * MAXL * BDIM));
+
+	cudaErrchk(cudaMalloc(&T.moves_global_d, (unsigned long long)2 * (MAXL+1) * (SL+1) * BDIM * sizeof(unsigned char)));
+	cudaErrchk(cudaMalloc(&T.diagonals_global_sc_d, (unsigned long long)(MAXL+1)*(SL+1) * BDIM * sizeof(short)));
+	cudaErrchk(cudaMalloc(&T.diagonals_global_gx_d, (unsigned long long)(MAXL+1)*(SL+1) * BDIM * sizeof(short)));
+	cudaErrchk(cudaMalloc(&T.diagonals_global_gy_d, (unsigned long long)(MAXL+1)*(SL+1) * BDIM * sizeof(short)));
+	cudaErrchk(cudaMalloc(&T.d_offsets_global_d, (unsigned long long)(MAXL + SL+1) * BDIM * sizeof(int)));
+	cudaErrchk(cudaMalloc(&T.x_to_ys_d, (unsigned long long)MAXL * BDIM * sizeof(int)));
+	cudaErrchk(cudaMalloc(&T.y_to_xs_d, (unsigned long long)MAXL * BDIM * sizeof(int)));
+	//cout << "Alloc completed\n";
+}
+
+inline void gpu_POA_free(TaskRefs &T){
+
+	cudaDeviceReset();
+	
+	free(T.result);
+	free(T.res_size);
+
+}
+
 static const int NOT_ALIGNED = -1;
 
-void init_kernel_block_parameters(vector<Task<vector<string>>> &window_batch, char** sequences, vector<int> &nseq_offsets, vector<int> &seq_offsets, int* tot_nseq, int first_el) {
+void init_kernel_block_parameters(vector<Task<vector<string>>> &window_batch, char** sequences, vector<int> &nseq_offsets, 
+								vector<int> &seq_offsets, int* tot_nseq, int first_el) {
 	
 	int batch_size = window_batch.size();						
 	int n = (first_el + BDIM < batch_size) ? BDIM : batch_size - first_el;
@@ -84,59 +133,6 @@ void init_kernel_block_parameters(vector<Task<vector<string>>> &window_batch, ch
 	}	
 }
 
-inline void gpu_POA_alloc(TaskRefs &T){
-
-	T.result = (char*)malloc(WL * MAXL * BDIM);
-	T.res_size = (int*)malloc(BDIM * sizeof(int));
-
-	cudaErrchk(cudaMalloc(&T.space_exceeded, sizeof(int)));
-
-	cudaErrchk(cudaMalloc(&T.old_len_global_d, (unsigned long long)BDIM * sizeof(int)));
-	cudaErrchk(cudaMalloc(&T.dyn_len_global_d, (unsigned long long)BDIM * sizeof(int)));
-
-	cudaErrchk(cudaMalloc(&T.sequences_d, (unsigned long long)SL * WL * BDIM)); 
-	cudaErrchk(cudaMalloc(&T.seq_offsets_d, (unsigned long long)BDIM * WL * sizeof(int))); 
-	cudaErrchk(cudaMalloc(&T.nseq_offsets_d, (unsigned long long)BDIM * sizeof(int))); 
-	cudaErrchk(cudaMalloc(&T.result_d, (unsigned long long)MAXL * WL * BDIM)); 
-	cudaErrchk(cudaMalloc(&T.res_size_d, (unsigned long long)BDIM * sizeof(int)));
-
-	cudaErrchk(cudaMalloc(&T.lpo_edge_offsets_d, (unsigned long long)WL * BDIM * sizeof(int)));
-	cudaErrchk(cudaMalloc(&T.lpo_letters_d, (unsigned long long)WL * SL * BDIM));
-	cudaErrchk(cudaMalloc(&T.lpo_edges_d, (unsigned long long)WL * SL * EDGE_F * BDIM * sizeof(Edge)));
-	cudaErrchk(cudaMalloc(&T.edge_bounds_d, (unsigned long long)WL * (SL+1) * BDIM * sizeof(int)));	
-	cudaErrchk(cudaMalloc(&T.end_nodes_d, (unsigned long long)WL * SL * BDIM));
-	cudaErrchk(cudaMalloc(&T.sequence_ids_d, (unsigned long long)WL * WL * SL * BDIM));
-	
-	cudaErrchk(cudaMalloc(&T.new_letters_global_d, (unsigned long long)MAXL * BDIM));
-	cudaErrchk(cudaMalloc(&T.new_edges_global_d, (unsigned long long)MAXL * EDGE_F * BDIM * sizeof(Edge)));
-	cudaErrchk(cudaMalloc(&T.new_edge_bounds_global_d, (unsigned long long)(MAXL+1) * BDIM * sizeof(int)));
-	cudaErrchk(cudaMalloc(&T.new_end_nodes_global_d, (unsigned long long)MAXL * BDIM));
-	cudaErrchk(cudaMalloc(&T.new_sequence_ids_global_d, (unsigned long long)WL * MAXL * BDIM));
-
-	cudaErrchk(cudaMalloc(&T.dyn_letters_global_d, (unsigned long long)MAXL * BDIM));
-	cudaErrchk(cudaMalloc(&T.dyn_edges_global_d, (unsigned long long)MAXL * EDGE_F * BDIM * sizeof(Edge)));
-	cudaErrchk(cudaMalloc(&T.dyn_edge_bounds_global_d, (unsigned long long)(MAXL+1) * BDIM * sizeof(int)));
-	cudaErrchk(cudaMalloc(&T.dyn_end_nodes_global_d, (unsigned long long)MAXL * BDIM));
-	cudaErrchk(cudaMalloc(&T.dyn_sequence_ids_global_d, (unsigned long long)WL * MAXL * BDIM));
-
-	cudaErrchk(cudaMalloc(&T.moves_global_d, (unsigned long long)2 * (MAXL+1) * (SL+1) * BDIM * sizeof(unsigned char)));
-	cudaErrchk(cudaMalloc(&T.diagonals_global_sc_d, (unsigned long long)(MAXL+1)*(SL+1) * BDIM * sizeof(short)));
-	cudaErrchk(cudaMalloc(&T.diagonals_global_gx_d, (unsigned long long)(MAXL+1)*(SL+1) * BDIM * sizeof(short)));
-	cudaErrchk(cudaMalloc(&T.diagonals_global_gy_d, (unsigned long long)(MAXL+1)*(SL+1) * BDIM * sizeof(short)));
-	cudaErrchk(cudaMalloc(&T.d_offsets_global_d, (unsigned long long)(MAXL + SL+1) * BDIM * sizeof(int)));
-	cudaErrchk(cudaMalloc(&T.x_to_ys_d, (unsigned long long)MAXL * BDIM * sizeof(int)));
-	cudaErrchk(cudaMalloc(&T.y_to_xs_d, (unsigned long long)MAXL * BDIM * sizeof(int)));
-	//cout << "Alloc completed\n";
-}
-
-inline void gpu_POA_free(TaskRefs &T){
-
-	cudaDeviceReset();
-	
-	free(T.result);
-	free(T.res_size);
-
-}
 
 void gpu_POA(vector<Task<vector<string>>> &input, TaskRefs &T) {
 	
@@ -153,12 +149,10 @@ void gpu_POA(vector<Task<vector<string>>> &input, TaskRefs &T) {
 
 	assign_device_memory<<<1, 1>>>(T.lpo_edge_offsets_d, T.lpo_letters_d, T.lpo_edges_d, 
 				       T.edge_bounds_d, T.end_nodes_d, T.sequence_ids_d, 
-				       T.new_letters_global_d, T.new_edges_global_d, T.new_edge_bounds_global_d, 
-				       T.new_end_nodes_global_d, T.new_sequence_ids_global_d, 
 				       T.dyn_letters_global_d, T.dyn_edges_global_d, T.dyn_edge_bounds_global_d, 
 				       T.dyn_end_nodes_global_d, T.dyn_sequence_ids_global_d,
 				       T.moves_global_d, T.diagonals_global_sc_d, T.diagonals_global_gx_d, T.diagonals_global_gy_d, 
-                                       T.d_offsets_global_d, T.x_to_ys_d, T.y_to_xs_d, T.old_len_global_d, T.dyn_len_global_d, BDIM);
+                                       T.d_offsets_global_d, T.x_to_ys_d, T.y_to_xs_d, T.dyn_len_global_d, BDIM);
 
 	cudaStreamSynchronize(0);
 
@@ -218,15 +212,15 @@ void gpu_POA(vector<Task<vector<string>>> &input, TaskRefs &T) {
 
 		// parametro 3 da sostituire !!!
 				
-		compute_d_offsets<<<BLOCKS, 1>>>(i_seq_idx, b + 1, T.nseq_offsets_d);
+		compute_d_offsets<<<BLOCKS, 1>>>(i_seq_idx, 1, T.nseq_offsets_d);
 		
 		cudaStreamSynchronize(0); 
 		
-		init_diagonals<<<BLOCKS,1>>>(i_seq_idx, b + 1, T.max_gapl, T.uses_global, T.nseq_offsets_d);
+		init_diagonals<<<BLOCKS,1>>>(i_seq_idx, 1, T.max_gapl, T.uses_global, T.nseq_offsets_d);
 		
 		//cout << "Alignment kernel call\n";
 		
-		sw_align<<<BLOCKS, SL+1>>>(i_seq_idx, b + 1, T.max_gapl, T.uses_global, T.nseq_offsets_d);
+		sw_align<<<BLOCKS, SL+1>>>(i_seq_idx, 1, T.max_gapl, T.uses_global, T.nseq_offsets_d);
 		
 		cudaStreamSynchronize(0);
 

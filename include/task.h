@@ -80,12 +80,6 @@ struct TaskRefs{
 	int* edge_bounds_d;
 	unsigned char* end_nodes_d;
 	unsigned char* sequence_ids_d;
-	
-	unsigned char* new_letters_global_d;	
-	Edge* new_edges_global_d;
-	int* new_edge_bounds_global_d;
-	unsigned char* new_end_nodes_global_d;
-	unsigned char* new_sequence_ids_global_d;
 
 	unsigned char* dyn_letters_global_d;	
 	Edge* dyn_edges_global_d;
@@ -101,7 +95,6 @@ struct TaskRefs{
 	int* x_to_ys_d;
 	int* y_to_xs_d;
 	
-	int* old_len_global_d;
 	int* dyn_len_global_d;	
 };
 

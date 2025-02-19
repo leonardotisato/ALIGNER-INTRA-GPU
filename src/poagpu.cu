@@ -43,13 +43,6 @@ __device__ int* edge_bounds;
 __device__ unsigned char* end_nodes;
 __device__ unsigned char* sequence_ids;
 
-__device__ int* old_len_global;
-__device__ unsigned char* new_letters_global;
-__device__ Edge* new_edges_global;
-__device__ int* new_edge_bounds_global;
-__device__ unsigned char* new_end_nodes_global;
-__device__ unsigned char* new_sequence_ids_global;
-
 __device__ int* dyn_len_global;
 __device__ unsigned char* dyn_letters_global;
 __device__ Edge* dyn_edges_global;
@@ -67,7 +60,11 @@ __device__ int* x_to_ys;
 __device__ int* y_to_xs;
 __device__ int g_space_exceeded = 0;
 
-__global__ void assign_device_memory(int* ledges_offs, unsigned char* lletters, Edge* ledges, int* ebounds, unsigned char* ennodes, unsigned char* seq_ids, unsigned char* nletters, Edge* nedges, int* nedgebounds, unsigned char* n_end_nodes, unsigned char* n_seq_ids, unsigned char* dletters, Edge* dedges, int* dedgebounds, unsigned char* d_end_nodes, unsigned char* d_seq_ids, unsigned char* moves, short* diagonals_sc, short* diagonals_gx, short* diagonals_gy, int* d_offs, int* xy, int* yx, int* oldlg, int* dynlg, const int num_blocks){
+__global__ void assign_device_memory(int* ledges_offs, unsigned char* lletters, Edge* ledges, int* ebounds, unsigned char* ennodes, 
+									unsigned char* seq_ids, unsigned char* nletters, Edge* nedges, int* nedgebounds, unsigned char* n_end_nodes, 
+									unsigned char* n_seq_ids, unsigned char* dletters, Edge* dedges, int* dedgebounds, unsigned char* d_end_nodes, 
+									unsigned char* d_seq_ids, unsigned char* moves, short* diagonals_sc, short* diagonals_gx, short* diagonals_gy, 
+									int* d_offs, int* xy, int* yx, int* oldlg, int* dynlg, const int num_blocks){
 	
 	lpo_edge_offsets = ledges_offs;
 	lpo_letters = lletters;
@@ -75,12 +72,6 @@ __global__ void assign_device_memory(int* ledges_offs, unsigned char* lletters, 
 	edge_bounds = ebounds;
 	end_nodes = ennodes;
 	sequence_ids = seq_ids;
-
-	new_letters_global = nletters;
-	new_edges_global = nedges;
-	new_edge_bounds_global = nedgebounds;
-	new_end_nodes_global = n_end_nodes;
-	new_sequence_ids_global = n_seq_ids;
 	
 	dyn_letters_global = dletters;
 	dyn_edges_global = dedges;
@@ -97,7 +88,6 @@ __global__ void assign_device_memory(int* ledges_offs, unsigned char* lletters, 
 	x_to_ys = xy;
 	y_to_xs = yx;
 
-	old_len_global = oldlg;
 	dyn_len_global = dynlg;
 }
 
