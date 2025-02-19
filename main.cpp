@@ -34,7 +34,7 @@ typedef uint32_t kmer;
 
 // constexpr unsigned int n_threads = 80;
 
-void read_batch_2(vector<vector<string>> &reads, size_t size, string filename){
+void read_batch(vector<vector<string>> &reads, size_t size, string filename){
 
 	ifstream infile(filename);
     int i = 0;
@@ -139,11 +139,10 @@ int main(int argc, char* argv[]) {
 	if(read_from_file){
 		string filepath(path_ref);
 		cout << "*** ATTEMPTING TO READ FROM " << filepath << " SAMPLE OF SIZE " << N_ALIGNMENTS << " ***" << endl;
-		read_batch_2(reads, /*N_ALIGNMENTS*/ NUM_BLOCKS, filepath);
+		read_batch(reads, NUM_BLOCKS, filepath);
 		cout << "Read " << reads.size() << " alignments" << endl;
 	}else{
-	//	cout << "*** GENERATING RANDOM SAMPLE OF SIZE " << N_ALIGNMENTS << " ***" << endl;
-		reads = get_random_sample(N_ALIGNMENTS, NUM_BLOCKS, MIN_WLEN, MAX_SEQ_LEN, MIN_SLEN);
+		cerr << "Invalid input";
 	}
 
 
@@ -154,13 +153,11 @@ int main(int argc, char* argv[]) {
 			cout << reads[i][j] << endl;
 		}
 	}
-		
-	vector<vector<string>> result_GPU;
 
 	//SIMPLE GPU EXECUTION SINGLE KERNEL
 	int c = 0;
 
-	get_bmean_batch_result_gpu(reads, result_GPU, c /*, MAX_SEQ_LEN, NUM_BLOCKS*/);
+	get_bmean_batch_result_gpu(reads, c);
 
 	
 	return 0;

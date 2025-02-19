@@ -138,10 +138,11 @@ inline void gpu_POA_free(TaskRefs &T){
 
 }
 
-void gpu_POA(vector<Task<vector<string>>> &input, TaskRefs &T, vector<Task<vector<string>>> &result_GPU, int res_gpu_offs) {
+void gpu_POA(vector<Task<vector<string>>> &input, TaskRefs &T) {
 	
 	int input_size = input.size(); // prende il numero di task che è == numero di window
 	int N_BL = (input_size - 1) / BDIM + 1; // variabile dal dubbio significato (credo numero di batch) = ceil(input_size / BDIM)
+	// cout << "N_BL = " << N_BL << endl;
 	int LAST_BATCH_SIZE = (input_size - 1) % BDIM + 1; 
 	int *space_exceeded = (int*)malloc(sizeof(int));
 
@@ -163,7 +164,7 @@ void gpu_POA(vector<Task<vector<string>>> &input, TaskRefs &T, vector<Task<vecto
 
 	for(int b = 0; b < N_BL; b++){
 
-		cout << b << "th iteration" << endl;
+		cout << "\n" << b << "th iteration" << endl;
 
 		int block_offset = b * BDIM;
 		int BLOCKS;
@@ -217,15 +218,15 @@ void gpu_POA(vector<Task<vector<string>>> &input, TaskRefs &T, vector<Task<vecto
 
 		// parametro 3 da sostituire !!!
 				
-		compute_d_offsets<<<BLOCKS, 1>>>(i_seq_idx, 3, T.nseq_offsets_d);
+		compute_d_offsets<<<BLOCKS, 1>>>(i_seq_idx, b + 1, T.nseq_offsets_d);
 		
 		cudaStreamSynchronize(0); 
 		
-		init_diagonals<<<BLOCKS,1>>>(i_seq_idx, 3, T.max_gapl, T.uses_global, T.nseq_offsets_d);
+		init_diagonals<<<BLOCKS,1>>>(i_seq_idx, b + 1, T.max_gapl, T.uses_global, T.nseq_offsets_d);
 		
 		//cout << "Alignment kernel call\n";
 		
-		sw_align<<<BLOCKS, SL+1>>>(i_seq_idx, 3, T.max_gapl, T.uses_global, T.nseq_offsets_d);
+		sw_align<<<BLOCKS, SL+1>>>(i_seq_idx, b + 1, T.max_gapl, T.uses_global, T.nseq_offsets_d);
 		
 		cudaStreamSynchronize(0);
 

@@ -294,7 +294,7 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 
  __global__ void sw_align(int i_seq_idx, int j_seq_idx, int max_gapl, int uses_global, int* nseq_offsets) {
 	
-	printf("%d\n", threadIdx.x);
+	// printf("%d\n", threadIdx.x);
 	if(g_space_exceeded) return;
 
 	int myId = blockIdx.x;
@@ -439,7 +439,7 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 			
 
 			// condizione per attivare solo "i thread giusti"
-			printf("%d\n", c);
+			// printf("%d\n", c);
 			if (c >= lower_bound && c < upper_bound) {
 
 				int match_score = ((uses_global == 0)-1) & (-999999);
@@ -570,13 +570,14 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 			__syncthreads();
 
 			// aaggiunto da me: solo un thread stampa la diagonale corrente
-			// printf("Hello\n");
 			if (threadIdx.x == 0 && blockIdx.x == 0) {
 				printf("Printing DP Matrix: \n");
 				int end = (n<(len_x + len_y)) ? d_offsets[n + 1] : (len_x+1) *(len_y+1);
-				printf("Diagonal %d, (%d %d %d): ", n, d_offsets[n], d_offsets[n + 1], end);
+				// printf("Diagonal %d, (%d %d %d):", n, d_offsets[n], d_offsets[n + 1], end);
+				printf("Diagonal %d:", n);
 				for (int d = d_offsets[n]; d < end; d++) {
-					printf("(%d %d)", diagonals_sc[d], d);
+					// printf("(%d %d)", diagonals_sc[d], d);
+					printf("(%d)", diagonals_sc[d]);
 				}
 				printf("\n");
 			}
@@ -653,7 +654,7 @@ __global__ void generate_lpo(char* seq, int* seq_offsets, int* nseq_offsets, int
 	if(myId == 0){
 		block_offset = 0;
 		n_seq = nseq_offsets[myId];
-		if(myTId == 0 && seq_idx == 0) {for(int i = 0; i < 4; i++) { printf("%d ", nseq_offsets[myId + i]);}} 
+		// if(myTId == 0 && seq_idx == 0) {for(int i = 0; i < 4; i++) { printf("%d ", nseq_offsets[myId + i]);}} 
 	}else{
 		block_offset = nseq_offsets[myId-1];
 		n_seq = nseq_offsets[myId] - nseq_offsets[myId-1];
