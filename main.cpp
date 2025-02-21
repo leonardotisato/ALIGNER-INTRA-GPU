@@ -34,63 +34,6 @@ typedef uint32_t kmer;
 
 // constexpr unsigned int n_threads = 80;
 
-void read_batch(vector<vector<string>> &reads, size_t size, string filename){
-
-	ifstream infile(filename);
-    int i = 0;
-
-    if (!infile.is_open()) {
-        std::cerr << "Errore: Impossibile aprire il file " << filename << std::endl;
-        return;
-    }
-
-    string line;
-    vector<string> readsVector;
-
-    // Lettura del file FASTA o simile
-    while (getline(infile, line)) {
-        // Rimozione spazi bianchi iniziali e finali
-        line.erase(0, line.find_first_not_of(" \t\n\r"));
-        if (!line.empty()) {
-            line.erase(line.find_last_not_of(" \t\n\r") + 1);
-        }
-
-        if (line.empty() || line[0] == '>') continue;
-
-        readsVector.push_back(line);         
-
-		i++;
-		if(i % size == 0) {
-			reads.push_back(readsVector);
-			readsVector.clear();
-		}
-    }
-
-	if (!readsVector.empty()) {
-        reads.push_back(readsVector);
-    }
-
-    infile.close();
-}
-
-int check_input_int(string &arg){
-	
-	try{
-		size_t pos;
-		int arg_i = stoi(arg, &pos);
-		if(pos < arg.size()){
-			std::cerr << "Trailing characters after number: " << arg << '\n';
-		}
-		return arg_i;
-	} catch (invalid_argument const &ex) {
-		std::cerr << "Invalid number: " << arg << '\n';
-		return -1;
-	} catch (out_of_range const &ex) {
-		std::cerr << "Number out of range: " << arg << '\n';
-		return -1;
-	}
-	
-}
 
 int main(int argc, char* argv[]) {
 
@@ -146,13 +89,7 @@ int main(int argc, char* argv[]) {
 	}
 
 
-	// printing reads
-	for(int i = 0; i < reads.size(); i++) {
-		cout << "Batch " << i << endl;
-		for(int j = 0; j < reads[i].size(); j++) {
-			cout << reads[i][j] << endl;
-		}
-	}
+	print_reads(reads);
 
 	//SIMPLE GPU EXECUTION SINGLE KERNEL
 	int c = 0;

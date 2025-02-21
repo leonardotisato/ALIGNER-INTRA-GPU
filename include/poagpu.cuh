@@ -89,14 +89,14 @@ inline void gpu_POA_free(TaskRefs &T){
 
 static const int NOT_ALIGNED = -1;
 
-void init_kernel_block_parameters(vector<Task<vector<string>>> &window_batch, char** sequences, vector<int> &nseq_offsets, 
+void init_kernel_block_parameters(vector<vector<string>> &window_batch, char** sequences, vector<int> &nseq_offsets, 
 								vector<int> &seq_offsets, int* tot_nseq, int first_el) {
 	
 	int batch_size = window_batch.size();						
 	int n = (first_el + BDIM < batch_size) ? BDIM : batch_size - first_el;
 	for(int window_idx = first_el; window_idx < first_el + BDIM && window_idx < batch_size; window_idx++) {
 		
-		nseq_offsets[window_idx - first_el] = window_batch[window_idx].task_data.size();
+		nseq_offsets[window_idx - first_el] = window_batch[window_idx].size();
 	}
 	partial_sum(nseq_offsets.begin(),nseq_offsets.end(),nseq_offsets.begin());
 	*tot_nseq = nseq_offsets[n-1];
@@ -104,7 +104,7 @@ void init_kernel_block_parameters(vector<Task<vector<string>>> &window_batch, ch
 	
 	int sequence_idx = 0;
 	for(int window_idx = first_el; window_idx < first_el + BDIM && window_idx < window_batch.size(); window_idx++) {
-		vector<string> &window = window_batch[window_idx].task_data;			
+		vector<string> &window = window_batch[window_idx];			
 		int wsize = window.size();
 		for(int i = 0; i < wsize; i++) {
 			seq_offsets[sequence_idx] = window[i].size();
@@ -118,7 +118,7 @@ void init_kernel_block_parameters(vector<Task<vector<string>>> &window_batch, ch
 
 	for(int window_idx = first_el; window_idx < first_el + BDIM && window_idx < window_batch.size(); window_idx++) {
 			
-		vector<string>& window = window_batch[window_idx].task_data;	
+		vector<string>& window = window_batch[window_idx];	
 		for(auto seq : window) {
 			int offset;
 			if(sequence_idx == 0){
@@ -134,7 +134,7 @@ void init_kernel_block_parameters(vector<Task<vector<string>>> &window_batch, ch
 }
 
 
-void gpu_POA(vector<Task<vector<string>>> &input, TaskRefs &T) {
+void gpu_POA(vector<vector<string>> &input, TaskRefs &T) {
 	
 	int input_size = input.size(); // prende il numero di task che è == numero di window
 	int N_BL = (input_size - 1) / BDIM + 1; // variabile dal dubbio significato (credo numero di batch) = ceil(input_size / BDIM)
@@ -190,20 +190,6 @@ void gpu_POA(vector<Task<vector<string>>> &input, TaskRefs &T) {
 		for(int i = 0; i < WL; i++){
 			generate_lpo<<<BLOCKS, SL+1>>>(T.sequences_d, T.seq_offsets_d, T.nseq_offsets_d, i);
 		}
-
-		// print LPO
-		// for (int b = 0; b < BLOCKS; ++b) {
-		// 	int block_offset = (b == 0) ? 0 : T.nseq_offsets[b - 1];
-		// 	int seq_len = (block_offset + i == 0) ? T.seq_offsets[block_offset + i] :
-		// 				T.seq_offsets[block_offset + i] - T.seq_offsets[block_offset + i - 1];
-
-		// 	std::cout << "Block " << b << ", Sequence " << i << ": ";
-		// 	for (int i = 0; i < seq_len; ++i) {
-		// 		std::cout << T.sequences[block_offset + i];
-		// 	}
-		// 	std::cout << std::endl;
-		// }
-
 		
 		int i_seq_idx = 0;
 		
