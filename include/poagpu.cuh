@@ -147,6 +147,7 @@ void gpu_POA(vector<Task<vector<string>>> &input, TaskRefs &T) {
 
 	T.nseq_offsets = vector<int>(BDIM);
 
+	// assegna ai puntatori allocati sul device i puntatori di T
 	assign_device_memory<<<1, 1>>>(T.lpo_edge_offsets_d, T.lpo_letters_d, T.lpo_edges_d, 
 				       T.edge_bounds_d, T.end_nodes_d, T.sequence_ids_d, 
 				       T.dyn_letters_global_d, T.dyn_edges_global_d, T.dyn_edge_bounds_global_d, 

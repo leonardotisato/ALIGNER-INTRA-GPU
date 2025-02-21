@@ -61,10 +61,9 @@ __device__ int* y_to_xs;
 __device__ int g_space_exceeded = 0;
 
 __global__ void assign_device_memory(int* ledges_offs, unsigned char* lletters, Edge* ledges, int* ebounds, unsigned char* ennodes, 
-									unsigned char* seq_ids, unsigned char* nletters, Edge* nedges, int* nedgebounds, unsigned char* n_end_nodes, 
-									unsigned char* n_seq_ids, unsigned char* dletters, Edge* dedges, int* dedgebounds, unsigned char* d_end_nodes, 
+									unsigned char* seq_ids, unsigned char* dletters, Edge* dedges, int* dedgebounds, unsigned char* d_end_nodes, 
 									unsigned char* d_seq_ids, unsigned char* moves, short* diagonals_sc, short* diagonals_gx, short* diagonals_gy, 
-									int* d_offs, int* xy, int* yx, int* oldlg, int* dynlg, const int num_blocks){
+									int* d_offs, int* xy, int* yx, int* dynlg, const int num_blocks){
 	
 	lpo_edge_offsets = ledges_offs;
 	lpo_letters = lletters;

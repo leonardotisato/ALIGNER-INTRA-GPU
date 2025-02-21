@@ -12,9 +12,13 @@ void get_bmean_batch_result_gpu(vector<vector<string>> reads, int &c){
 	poa_gpu_utils::TaskRefs T;		// struct con dentro TUUUUUTTO
 	size_t size = reads.size();
 
+	// crea un vettore di size elementi, in cui ogni elemento è un task identificato da 0, 
+	// con indice 0 e contenente un vettore vuoto di stringhe
 	vector<poa_gpu_utils::Task<vector<string>>> gpu_tasks(size, poa_gpu_utils::Task<vector<string>>(0,0,vector<string>()));
 	
-	//task transfer
+
+	// inizializza il vettore di size elementi, in cui ogni elemento è un task identificato da i, 
+	// con indice i e contenente un vettore di stringhe preso da reads
 	int i = 0;
 	for(auto s : reads){
 		poa_gpu_utils::Task<vector<string>> t = poa_gpu_utils::Task<vector<string>>(i, i, s);
