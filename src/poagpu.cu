@@ -30,10 +30,10 @@ struct MaxCell {
 static const int NOT_ALIGNED = -1;
 
 __device__ int score(unsigned char i, unsigned char j) { return i == j ? MATCH : MISMATCH; }
-__device__ int gap_penalty_x(int pos, int max_gapl, int uses_global) { return (uses_global == 0 && pos == max_gapl + 1) ? 0 : GAP; }
-__device__ int gap_penalty_y(int pos, int max_gapl, int uses_global) { return (uses_global == 0 && pos == max_gapl + 1) ? 0 : GAP; }
-__device__ int next_gap(int i, int max_gapl, int uses_global) { return (i < max_gapl) ? (i + 1) : i == max_gapl ? i : uses_global ? 1 : max_gapl + 1; }
-__device__ int next_perp_gap(int i, int max_gapl, int uses_global) { return  (i < max_gapl) ? (i + 1) : i == max_gapl ? i : uses_global ? 1 : max_gapl + 1; }
+// __device__ int gap_penalty_x(int pos, int max_gapl, int uses_global) { return (uses_global == 0 && pos == max_gapl + 1) ? 0 : GAP; }
+// __device__ int gap_penalty_y(int pos, int max_gapl, int uses_global) { return (uses_global == 0 && pos == max_gapl + 1) ? 0 : GAP; }
+// __device__ int next_gap(int i, int max_gapl, int uses_global) { return (i < max_gapl) ? (i + 1) : i == max_gapl ? i : uses_global ? 1 : max_gapl + 1; }
+// __device__ int next_perp_gap(int i, int max_gapl, int uses_global) { return  (i < max_gapl) ? (i + 1) : i == max_gapl ? i : uses_global ? 1 : max_gapl + 1; }
 
 __device__ int* lpo_offsets;
 __device__ int* lpo_edge_offsets;
@@ -60,8 +60,8 @@ __device__ unsigned char* dyn_sequence_ids_global;
 __device__ unsigned char* moves_x_global;
 __device__ unsigned char* moves_y_global;
 __device__ short* diagonals_sc_global;
-__device__ short* diagonals_gx_global;
-__device__ short* diagonals_gy_global;
+// __device__ short* diagonals_gx_global;
+// __device__ short* diagonals_gy_global;
 __device__ int* d_offsets_global;
 __device__ int* x_to_ys;
 __device__ int* y_to_xs;
@@ -91,8 +91,8 @@ __global__ void assign_device_memory(int* ledges_offs, unsigned char* lletters, 
 	moves_x_global = moves;
 	moves_y_global = moves + (unsigned long)(MAXL+1)*(SL+1) * num_blocks;
 	diagonals_sc_global = diagonals_sc;
-	diagonals_gx_global = diagonals_gx;
-	diagonals_gy_global = diagonals_gy;
+	// diagonals_gx_global = diagonals_gx;
+	// diagonals_gy_global = diagonals_gy;
 	d_offsets_global = d_offs;
 	x_to_ys = xy;
 	y_to_xs = yx;
@@ -137,15 +137,15 @@ __global__ void init_diagonals(int i_seq_idx, int j_seq_idx, int max_gapl, int u
 		int* ly_start = edge_bounds + y_seq_offs + global_seq_idx_y;
 
 		short* diagonals_sc = diagonals_sc_global + (MAXL+1)*(SL+1) * myId;
-		short* diagonals_gx = diagonals_gx_global + (MAXL+1)*(SL+1) * myId;
-		short* diagonals_gy = diagonals_gy_global + (MAXL+1)*(SL+1) * myId;
+		// short* diagonals_gx = diagonals_gx_global + (MAXL+1)*(SL+1) * myId;
+		// short* diagonals_gy = diagonals_gy_global + (MAXL+1)*(SL+1) * myId;
 		int* d_offsets = d_offsets_global + (MAXL+SL+1) * myId;
 	
 		int min_d = len_x < len_y ? len_x : len_y;
 
 		diagonals_sc[0] = 0;
-		diagonals_gx[0] = max_gapl + 1;
-		diagonals_gy[0] = max_gapl + 1;
+		// diagonals_gx[0] = max_gapl + 1;
+		// diagonals_gy[0] = max_gapl + 1;
 
 		int min_score = -999999;
 		int try_score;   
@@ -154,8 +154,8 @@ __global__ void init_diagonals(int i_seq_idx, int j_seq_idx, int max_gapl, int u
 
 			int offs = i < min_d ? i : min_d;
 			short &curr_cell_sc = (diagonals_sc+d_offsets[i])[offs];
-			short &curr_cell_gx = (diagonals_gx+d_offsets[i])[offs];
-			short &curr_cell_gy = (diagonals_gy+d_offsets[i])[offs];
+			// short &curr_cell_gx = (diagonals_gx+d_offsets[i])[offs];
+			// short &curr_cell_gy = (diagonals_gy+d_offsets[i])[offs];
 			curr_cell_sc = min_score;
 
 			int k = lx_start[i - 1];
@@ -164,14 +164,15 @@ __global__ void init_diagonals(int i_seq_idx, int j_seq_idx, int max_gapl, int u
 				Edge xl = left_x[k];
 				int prev_last_cell = xl + 1 < min_d ? xl + 1 : min_d;
 				short prev_sc = (diagonals_sc + d_offsets[xl + 1])[prev_last_cell];
-				short prev_gx = (diagonals_gx + d_offsets[xl + 1])[prev_last_cell];
+				// short prev_gx = (diagonals_gx + d_offsets[xl + 1])[prev_last_cell];
 		
-				try_score = prev_sc - gap_penalty_x(prev_gx, max_gapl, uses_global);    
+				// try_score = prev_sc - gap_penalty_x(prev_gx, max_gapl, uses_global);
+				try_score = prev_sc - GAP;    
 
 				if (try_score > curr_cell_sc) {
 					curr_cell_sc = try_score;
-					curr_cell_gx = next_gap(prev_gx, max_gapl, uses_global);
-					curr_cell_gy = next_perp_gap(prev_gx, max_gapl, uses_global);
+					// curr_cell_gx = next_gap(prev_gx, max_gapl, uses_global);
+					// curr_cell_gy = next_perp_gap(prev_gx, max_gapl, uses_global);
 				}
 			}
 		}
@@ -179,8 +180,8 @@ __global__ void init_diagonals(int i_seq_idx, int j_seq_idx, int max_gapl, int u
 		for (int i = 1; i < len_y + 1; i++) {
 
 			short &curr_cell_sc = diagonals_sc[d_offsets[i]];
-			short &curr_cell_gx = diagonals_gx[d_offsets[i]];
-			short &curr_cell_gy = diagonals_gy[d_offsets[i]];
+			// short &curr_cell_gx = diagonals_gx[d_offsets[i]];
+			// short &curr_cell_gy = diagonals_gy[d_offsets[i]];
 			curr_cell_sc = min_score;
 
 			int k = ly_start[i - 1];
@@ -188,14 +189,15 @@ __global__ void init_diagonals(int i_seq_idx, int j_seq_idx, int max_gapl, int u
 
 				Edge yl = left_y[k];
 				short prev_sc = diagonals_sc[d_offsets[yl + 1]];
-				short prev_gy = diagonals_gy[d_offsets[yl + 1]];
+				// short prev_gy = diagonals_gy[d_offsets[yl + 1]];
 
-				try_score = prev_sc - gap_penalty_y(prev_gy, max_gapl, uses_global);      
+				// try_score = prev_sc - gap_penalty_y(prev_gy, max_gapl, uses_global);
+				try_score = prev_sc - GAP;
 
 				if (try_score > curr_cell_sc) {
 					curr_cell_sc = try_score;
-					curr_cell_gx = next_perp_gap(prev_gy, max_gapl, uses_global);
-					curr_cell_gy = next_gap(prev_gy, max_gapl, uses_global);
+					// curr_cell_gx = next_perp_gap(prev_gy, max_gapl, uses_global);
+					// curr_cell_gy = next_gap(prev_gy, max_gapl, uses_global);
 				}
 			}
 		}
@@ -294,7 +296,7 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 
  __global__ void sw_align(int i_seq_idx, int j_seq_idx, int max_gapl, int uses_global, int* nseq_offsets) {
 	
-	printf("%d\n", threadIdx.x);
+	printf("threadIdx = %d\n", threadIdx.x);
 	if(g_space_exceeded) return;
 
 	int myId = blockIdx.x;
@@ -316,6 +318,7 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 
 // Determina l'offset del blocco e il numero di sequenze associate a ciascun blocco.
 // dyn_len_global: Array che contiene le lunghezze di tutte le sequenze X.
+// nseq_offsets: array che contiene gli offset delle diagonali in memoria.
 	if(myId == 0){
 		block_offset = 0;
 		nseq = nseq_offsets[myId];
@@ -348,8 +351,8 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 		__shared__ int* x_to_y;
 		__shared__ int* y_to_x;
 		__shared__ short* diagonals_sc;
-		__shared__ short* diagonals_gx;
-		__shared__ short* diagonals_gy;
+		// __shared__ short* diagonals_gx;
+		// __shared__ short* diagonals_gy;
 		__shared__ unsigned char* moves_x;
 		__shared__ unsigned char* moves_y;
 
@@ -360,8 +363,8 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 			x_to_y= x_to_ys + MAXL * myId;
 			y_to_x = y_to_xs + MAXL * myId;
 			diagonals_sc = diagonals_sc_global + (MAXL+1)*(SL+1) * myId;
-			diagonals_gx = diagonals_gx_global + (MAXL+1)*(SL+1) * myId; 
-			diagonals_gy = diagonals_gy_global + (MAXL+1)*(SL+1) * myId;
+			// diagonals_gx = diagonals_gx_global + (MAXL+1)*(SL+1) * myId; 
+			// diagonals_gy = diagonals_gy_global + (MAXL+1)*(SL+1) * myId;
 			moves_x = moves_x_global + (MAXL+1)*(SL+1) * myId;
 			moves_y = moves_y_global + (MAXL+1)*(SL+1) * myId;
 		}
@@ -450,8 +453,8 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 				int insert_y_score = -999999;
 				int insert_x_x = 0;
 				int insert_y_y = 0;
-				int insert_x_gap = 0;
-				int insert_y_gap = 0;
+				// int insert_x_gap = 0;
+				// int insert_y_gap = 0;
 
 				int try_score = -999999;
 				
@@ -473,16 +476,17 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 					int k = ((0 > i_prev + j - len_y)-1) & (i_prev + j - len_y);
 					int n_prev = i_prev + j;
 					int c_prev = j - k;
-					int prev_gy;
+					// int prev_gy;
 
 					try_score = (diagonals_sc + d_offsets[n_prev])[c_prev];
-					prev_gy = (diagonals_gy + d_offsets[n_prev])[c_prev];
-					try_score -= gap_penalty_y(prev_gy, max_gapl, uses_global);
+					// prev_gy = (diagonals_gy + d_offsets[n_prev])[c_prev];
+					// try_score -= gap_penalty_y(prev_gy, max_gapl, uses_global);
+					try_score -= GAP;
 					
 					if (try_score > insert_y_score) {
 						insert_y_score = try_score;
 						insert_y_y = y_count;
-						insert_y_gap = prev_gy;
+						// insert_y_gap = prev_gy;
 					}
 
 				}
@@ -497,16 +501,17 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 					int k = ((0 > j_prev + i - len_y)-1) & (j_prev + i - len_y);
 					int n_prev = j_prev + i;
 					int c_prev = j_prev - k;
-					int prev_gx;
+					// int prev_gx;
 
 					try_score = (diagonals_sc + d_offsets[n_prev])[c_prev];
-					prev_gx = (diagonals_gx + d_offsets[n_prev])[c_prev];
-					try_score -= gap_penalty_x(prev_gx, max_gapl, uses_global);
+					// prev_gx = (diagonals_gx + d_offsets[n_prev])[c_prev];
+					// try_score -= gap_penalty_x(prev_gx, max_gapl, uses_global);
+					try_score -= GAP;
 					
 					if (try_score > insert_x_score) {
 						insert_x_score = try_score;
 						insert_x_x = x_count;
-						insert_x_gap = prev_gx;
+						// insert_x_gap = prev_gx;
 					}
 
 					k = ly_start[i-1];
@@ -533,8 +538,8 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 				unsigned char my_move_y; 
 				
 				short my_score;
-				short my_gx; 
-				short my_gy; 
+				// short my_gx; 
+				// short my_gy; 
 				
 				int match_mask = (match_score <= insert_y_score || match_score <= insert_x_score)-1;
 				int ins_x_mask = (insert_x_score < match_score || insert_x_score <= insert_y_score)-1;
@@ -542,11 +547,12 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 
 				my_score = (match_score & match_mask) + (insert_x_score & ins_x_mask) + (insert_y_score & ins_y_mask);
 				
-				my_gx = 0 + (next_gap(insert_x_gap, max_gapl, uses_global) & ins_x_mask) + 
-						(next_perp_gap(insert_y_gap, max_gapl, uses_global) & ins_y_mask);
+				// next_gap() e next_perp_gap() usate per aggiornare la posizione del gap
+				// my_gx = 0 + (next_gap(insert_x_gap, max_gapl, uses_global) & ins_x_mask) + 
+				// 		(next_perp_gap(insert_y_gap, max_gapl, uses_global) & ins_y_mask);
 				
-				my_gy = 0 + (next_perp_gap(insert_x_gap, max_gapl, uses_global) & ins_x_mask) + 
-						(next_gap(insert_y_gap, max_gapl, uses_global) & ins_y_mask);
+				// my_gy = 0 + (next_perp_gap(insert_x_gap, max_gapl, uses_global) & ins_x_mask) + 
+				// 		(next_gap(insert_y_gap, max_gapl, uses_global) & ins_y_mask);
 				
 				my_move_x = (match_x & match_mask) + (insert_x_x & ins_x_mask) + 0;
 				
@@ -563,8 +569,8 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 				(moves_x+d_offsets[n])[c] = my_move_x;
 				(moves_y+d_offsets[n])[c] = my_move_y;
 				(diagonals_sc + d_offsets[n])[c] = my_score;
-				(diagonals_gx + d_offsets[n])[c] = my_gx;
-				(diagonals_gy + d_offsets[n])[c] = my_gy;		
+				// (diagonals_gx + d_offsets[n])[c] = my_gx;
+				// (diagonals_gy + d_offsets[n])[c] = my_gy;		
 					
 			}
 			__syncthreads();
