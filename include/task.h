@@ -28,32 +28,6 @@ namespace poa_gpu_utils{
 
 typedef short Edge; 
 
-enum TaskType{ UNDEF = -1, POA_8_32 = 0, POA_8_64 = 1, POA_8_128 = 2, POA_8_255 = 3, 
-	       POA_16_32 = 4, POA_16_64 = 5, POA_16_128 = 6, POA_16_255 = 7, 
-	       POA_32_32 = 8, POA_32_64 = 9, POA_32_128 = 10, POA_32_255 = 11, POA_CPU = 12 };
-
-template<typename T>
-class Task{
-
-	public:
-		long long task_id;
-		unsigned long task_index;
-		T task_data;
-
-		Task(unsigned long long my_id, unsigned long my_idx, T& my_data) : 
-			task_id(my_id), task_index(my_idx), task_data(my_data) {}	
-	
-		Task(unsigned long long my_id, unsigned long my_idx, T&& my_data) : 
-			task_id(my_id), task_index(my_idx) { swap(task_data, my_data); }	
-					
-		Task& operator=(const Task& other){
-			task_data = other.task_data;
-			task_id = other.task_id;
-			task_index = other.task_index;
-			return *this;
-		}
-};
-
 struct TaskRefs{
 	
 	int uses_global = USES_GLOBAL;
@@ -80,12 +54,6 @@ struct TaskRefs{
 	int* edge_bounds_d;
 	unsigned char* end_nodes_d;
 	unsigned char* sequence_ids_d;
-	
-	unsigned char* new_letters_global_d;	
-	Edge* new_edges_global_d;
-	int* new_edge_bounds_global_d;
-	unsigned char* new_end_nodes_global_d;
-	unsigned char* new_sequence_ids_global_d;
 
 	unsigned char* dyn_letters_global_d;	
 	Edge* dyn_edges_global_d;
@@ -101,7 +69,6 @@ struct TaskRefs{
 	int* x_to_ys_d;
 	int* y_to_xs_d;
 	
-	int* old_len_global_d;
 	int* dyn_len_global_d;	
 };
 

@@ -34,63 +34,6 @@ typedef uint32_t kmer;
 
 // constexpr unsigned int n_threads = 80;
 
-void read_batch_2(vector<vector<string>> &reads, size_t size, string filename){
-
-	ifstream infile(filename);
-    int i = 0;
-
-    if (!infile.is_open()) {
-        std::cerr << "Errore: Impossibile aprire il file " << filename << std::endl;
-        return;
-    }
-
-    string line;
-    vector<string> readsVector;
-
-    // Lettura del file FASTA o simile
-    while (getline(infile, line)) {
-        // Rimozione spazi bianchi iniziali e finali
-        line.erase(0, line.find_first_not_of(" \t\n\r"));
-        if (!line.empty()) {
-            line.erase(line.find_last_not_of(" \t\n\r") + 1);
-        }
-
-        if (line.empty() || line[0] == '>') continue;
-
-        readsVector.push_back(line);         
-
-		i++;
-		if(i % size == 0) {
-			reads.push_back(readsVector);
-			readsVector.clear();
-		}
-    }
-
-	if (!readsVector.empty()) {
-        reads.push_back(readsVector);
-    }
-
-    infile.close();
-}
-
-int check_input_int(string &arg){
-	
-	try{
-		size_t pos;
-		int arg_i = stoi(arg, &pos);
-		if(pos < arg.size()){
-			std::cerr << "Trailing characters after number: " << arg << '\n';
-		}
-		return arg_i;
-	} catch (invalid_argument const &ex) {
-		std::cerr << "Invalid number: " << arg << '\n';
-		return -1;
-	} catch (out_of_range const &ex) {
-		std::cerr << "Number out of range: " << arg << '\n';
-		return -1;
-	}
-	
-}
 
 int main(int argc, char* argv[]) {
 
@@ -139,28 +82,19 @@ int main(int argc, char* argv[]) {
 	if(read_from_file){
 		string filepath(path_ref);
 		cout << "*** ATTEMPTING TO READ FROM " << filepath << " SAMPLE OF SIZE " << N_ALIGNMENTS << " ***" << endl;
-		read_batch_2(reads, /*N_ALIGNMENTS*/ NUM_BLOCKS, filepath);
+		read_batch(reads, NUM_BLOCKS, filepath);
 		cout << "Read " << reads.size() << " alignments" << endl;
 	}else{
-	//	cout << "*** GENERATING RANDOM SAMPLE OF SIZE " << N_ALIGNMENTS << " ***" << endl;
-		reads = get_random_sample(N_ALIGNMENTS, NUM_BLOCKS, MIN_WLEN, MAX_SEQ_LEN, MIN_SLEN);
+		cerr << "Invalid input";
 	}
 
 
-	// printing reads
-	for(int i = 0; i < reads.size(); i++) {
-		cout << "Batch " << i << endl;
-		for(int j = 0; j < reads[i].size(); j++) {
-			cout << reads[i][j] << endl;
-		}
-	}
-		
-	vector<vector<string>> result_GPU;
+	print_reads(reads);
 
 	//SIMPLE GPU EXECUTION SINGLE KERNEL
 	int c = 0;
 
-	get_bmean_batch_result_gpu(reads, result_GPU, c /*, MAX_SEQ_LEN, NUM_BLOCKS*/);
+	get_bmean_batch_result_gpu(reads, c);
 
 	
 	return 0;

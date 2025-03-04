@@ -3,95 +3,93 @@
 #include <vector>
 #include <random>
 #include <string>
+#include <fstream>
 #include <map>
 #include "../include/poagpu.cuh"
 
 
-void get_bmean_batch_result_gpu(vector<vector<string>> windows, vector<vector<string>> &results, int &c /*, int max_s, int max_w*/){
+int check_input_int(string &arg){
+	
+	try{
+		size_t pos;
+		int arg_i = stoi(arg, &pos);
+		if(pos < arg.size()){
+			std::cerr << "Trailing characters after number: " << arg << '\n';
+		}
+		return arg_i;
+	} catch (invalid_argument const &ex) {
+		std::cerr << "Invalid number: " << arg << '\n';
+		return -1;
+	} catch (out_of_range const &ex) {
+		std::cerr << "Number out of range: " << arg << '\n';
+		return -1;
+	}
+	
+}
+
+
+void read_batch(vector<vector<string>> &reads, size_t size, string filename){
+
+	ifstream infile(filename);
+    int i = 0;
+
+    if (!infile.is_open()) {
+        std::cerr << "Errore: Impossibile aprire il file " << filename << std::endl;
+        return;
+    }
+
+    string line;
+    vector<string> readsVector;
+
+    // Lettura del file FASTA o simile
+    while (getline(infile, line)) {
+        // Rimozione spazi bianchi iniziali e finali
+        line.erase(0, line.find_first_not_of(" \t\n\r"));
+        if (!line.empty()) {
+            line.erase(line.find_last_not_of(" \t\n\r") + 1);
+        }
+
+        if (line.empty() || line[0] == '>') continue;
+
+        readsVector.push_back(line);         
+
+		i++;
+		if(i % size == 0) {
+			reads.push_back(readsVector);
+			readsVector.clear();
+		}
+    }
+
+	if (!readsVector.empty()) {
+        reads.push_back(readsVector);
+    }
+
+    infile.close();
+}
+
+void print_reads(vector<vector<string>> reads) {
+	
+	for(int i = 0; i < reads.size(); i++) {
+		cout << "Batch " << i << endl;
+		for(int j = 0; j < reads[i].size(); j++) {
+			cout << reads[i][j] << endl;
+		}
+	}
+}
+
+
+void get_bmean_batch_result_gpu(vector<vector<string>> reads, int &c){
 
 	poa_gpu_utils::TaskRefs T;		// struct con dentro TUUUUUTTO
-	size_t size = windows.size();
-
-	// vector<vector<string>> result_GPU;
-	vector<poa_gpu_utils::Task<vector<string>>> gpu_tasks(size, poa_gpu_utils::Task<vector<string>>(0,0,vector<string>()));
-	vector<poa_gpu_utils::Task<vector<string>>> gpu_res(size, poa_gpu_utils::Task<vector<string>>(0,0,vector<string>()));
-	
-	//task transfer
-	int i = 0;
-	for(auto s : windows){
-		poa_gpu_utils::Task<vector<string>> t = poa_gpu_utils::Task<vector<string>>(i, i, s);
-		gpu_tasks[i] = t;
-		i++;
-	}
-
-	// TTy = poa_gpu_utils::get_task_type_direct(max_w, max_s);
+	// size_t size = reads.size();
 
 	auto start = NOW;
 
-	// poa_gpu_utils::sel_gpu_POA_alloc(T, TTy);
 	gpu_POA_alloc(T);
-	// poa_gpu_utils::sel_gpu_POA(gpu_tasks, T, gpu_res, 0, TTy);
-	gpu_POA(gpu_tasks, T, gpu_res, 0);
+	gpu_POA(reads, T);
 	gpu_POA_free(T);
 
 	auto end = NOW;
 	c = duration_cast<microseconds>(end - start).count();
 	std::cout << "Duration: " << c << " microseconds" << std::endl;
-
-	for(auto r : gpu_res){
-		results.push_back(r.task_data);
-	}
-}
-
-
-vector<string> generate_random_window(int max_L, int min_L, int min_N, int max_N) {
-
-	// random_device rd;
-	// default_random_engine generator(rd());
-	
-	// uniform_int_distribution<int> L_distribution(min_L, max_L);
-	// uniform_int_distribution<int> N_distribution(min_N, max_N);	
-	// uniform_int_distribution<int> char_distribution(0,3);
-
-	// int L = L_distribution(generator);
-	
-	// vector<string> window;
-
-	// for(int i = 0; i < L; i++){
-
-	// 	int N = N_distribution(generator);
-	// 	string sequence = "";
-	
-	// 	for(int j = 0; j < N; j++){
-	// 		char c = char_map[char_distribution(generator)];
-	// 		sequence += c;
-			
-	// 	}
-	// 	window.push_back(sequence);
-	// }
-
-	vector<string> window;
-    window.push_back("AG");
-    window.push_back("ACTGA");
-	window.push_back("TTC");
-	window.push_back("TTC");
-
-	return window;
-
-}
-
-vector<vector<string>> get_random_sample(int batch_size, int max_L = MAX_L, int min_L = MIN_L, int max_N = MAX_N, int min_N = MIN_N) { 		
-	std::cout << "Alive!\n";
-	vector<vector<string>> sample;	
-	// int step = batch_size / 10;
-	// int perc = 0;
-
-	cout << "Sample generation: size=" << batch_size << ", L=[" << min_L << "," << max_L << "], N=[" << min_N << "," << max_N << "]\n";
-
-	for(int i = 0; i < batch_size; i++) {
-// PERCHE' NON EMPLACE_BACK ?? -------------------------------------------------------------------------------------------------
-		sample.push_back(generate_random_window(max_L, min_L, min_N, max_N));
-		// if(i % step == 0){ cout << "Generation: [" << perc << "%]\n"; perc += 10;  }
-	}
-	return sample;
 }

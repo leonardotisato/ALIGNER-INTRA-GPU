@@ -43,13 +43,6 @@ __device__ int* edge_bounds;
 __device__ unsigned char* end_nodes;
 __device__ unsigned char* sequence_ids;
 
-__device__ int* old_len_global;
-__device__ unsigned char* new_letters_global;
-__device__ Edge* new_edges_global;
-__device__ int* new_edge_bounds_global;
-__device__ unsigned char* new_end_nodes_global;
-__device__ unsigned char* new_sequence_ids_global;
-
 __device__ int* dyn_len_global;
 __device__ unsigned char* dyn_letters_global;
 __device__ Edge* dyn_edges_global;
@@ -67,7 +60,10 @@ __device__ int* x_to_ys;
 __device__ int* y_to_xs;
 __device__ int g_space_exceeded = 0;
 
-__global__ void assign_device_memory(int* ledges_offs, unsigned char* lletters, Edge* ledges, int* ebounds, unsigned char* ennodes, unsigned char* seq_ids, unsigned char* nletters, Edge* nedges, int* nedgebounds, unsigned char* n_end_nodes, unsigned char* n_seq_ids, unsigned char* dletters, Edge* dedges, int* dedgebounds, unsigned char* d_end_nodes, unsigned char* d_seq_ids, unsigned char* moves, short* diagonals_sc, short* diagonals_gx, short* diagonals_gy, int* d_offs, int* xy, int* yx, int* oldlg, int* dynlg, const int num_blocks){
+__global__ void assign_device_memory(int* ledges_offs, unsigned char* lletters, Edge* ledges, int* ebounds, unsigned char* ennodes, 
+									unsigned char* seq_ids, unsigned char* dletters, Edge* dedges, int* dedgebounds, unsigned char* d_end_nodes, 
+									unsigned char* d_seq_ids, unsigned char* moves, short* diagonals_sc, short* diagonals_gx, short* diagonals_gy, 
+									int* d_offs, int* xy, int* yx, int* dynlg, const int num_blocks){
 	
 	lpo_edge_offsets = ledges_offs;
 	lpo_letters = lletters;
@@ -75,12 +71,6 @@ __global__ void assign_device_memory(int* ledges_offs, unsigned char* lletters, 
 	edge_bounds = ebounds;
 	end_nodes = ennodes;
 	sequence_ids = seq_ids;
-
-	new_letters_global = nletters;
-	new_edges_global = nedges;
-	new_edge_bounds_global = nedgebounds;
-	new_end_nodes_global = n_end_nodes;
-	new_sequence_ids_global = n_seq_ids;
 	
 	dyn_letters_global = dletters;
 	dyn_edges_global = dedges;
@@ -97,7 +87,6 @@ __global__ void assign_device_memory(int* ledges_offs, unsigned char* lletters, 
 	x_to_ys = xy;
 	y_to_xs = yx;
 
-	old_len_global = oldlg;
 	dyn_len_global = dynlg;
 }
 
@@ -442,7 +431,7 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 			
 
 			// condizione per attivare solo "i thread giusti"
-			printf("%d\n", c);
+			// printf("%d\n", c);
 			if (c >= lower_bound && c < upper_bound) {
 
 				int match_score = ((uses_global == 0)-1) & (-999999);
@@ -576,13 +565,14 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 			__syncthreads();
 
 			// aaggiunto da me: solo un thread stampa la diagonale corrente
-			// printf("Hello\n");
 			if (threadIdx.x == 0 && blockIdx.x == 0) {
 				printf("Printing DP Matrix: \n");
 				int end = (n<(len_x + len_y)) ? d_offsets[n + 1] : (len_x+1) *(len_y+1);
-				printf("Diagonal %d, (%d %d %d): ", n, d_offsets[n], d_offsets[n + 1], end);
+				// printf("Diagonal %d, (%d %d %d):", n, d_offsets[n], d_offsets[n + 1], end);
+				printf("Diagonal %d:", n);
 				for (int d = d_offsets[n]; d < end; d++) {
-					printf("(%d %d)", diagonals_sc[d], d);
+					// printf("(%d %d)", diagonals_sc[d], d);
+					printf("(%d)", diagonals_sc[d]);
 				}
 				printf("\n");
 			}
@@ -659,7 +649,7 @@ __global__ void generate_lpo(char* seq, int* seq_offsets, int* nseq_offsets, int
 	if(myId == 0){
 		block_offset = 0;
 		n_seq = nseq_offsets[myId];
-		if(myTId == 0 && seq_idx == 0) {for(int i = 0; i < 4; i++) { printf("%d ", nseq_offsets[myId + i]);}} 
+		// if(myTId == 0 && seq_idx == 0) {for(int i = 0; i < 4; i++) { printf("%d ", nseq_offsets[myId + i]);}} 
 	}else{
 		block_offset = nseq_offsets[myId-1];
 		n_seq = nseq_offsets[myId] - nseq_offsets[myId-1];
