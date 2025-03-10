@@ -30,7 +30,6 @@ using namespace chrono;
 
 #define NOW high_resolution_clock::now()
 
-typedef uint32_t kmer;
 
 // constexpr unsigned int n_threads = 80;
 
@@ -89,7 +88,7 @@ int main(int argc, char* argv[]) {
 	}
 
 
-	print_reads(reads);
+	// print_reads(reads);
 
 	//SIMPLE GPU EXECUTION SINGLE KERNEL
 	int c = 0;

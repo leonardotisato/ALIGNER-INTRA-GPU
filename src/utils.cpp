@@ -60,6 +60,8 @@ void read_batch(vector<vector<string>> &reads, size_t size, string filename){
 		}
     }
 
+	
+
 	if (!readsVector.empty()) {
         reads.push_back(readsVector);
     }

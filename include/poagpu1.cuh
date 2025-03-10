@@ -3,7 +3,6 @@
 
 #include <cuda_runtime.h>
 #include <chrono>
-#include <iostream>
 #include <unistd.h>
 #include <thrust/scan.h>
 #include <thrust/device_vector.h>
@@ -41,8 +40,6 @@ inline void gpuAssert(cudaError_t code, const char* file, int line, bool abort =
 
 
 inline void gpu_POA_alloc(TaskRefs &T){
-
-	// alloco memoria sul device, la memoria è puntata da puntatori che risiedono sulla memoria host
 
 	// dimensione memoria allocata dipendente dal numero di blocchi ??
 	// spazi allocati dipendenti da WL ??
@@ -96,33 +93,18 @@ static const int NOT_ALIGNED = -1;
 
 void init_kernel_block_parameters(vector<vector<string>> &reads, char** sequences, vector<int> &nseq_offsets, 
 								vector<int> &seq_offsets, int* tot_nseq, int first_el) {
-
-	cout << "FIRST EL = " << first_el << endl;
 						
 	int n = (first_el + BDIM < reads.size()) ? BDIM : reads.size() - first_el;
 
 	// first_el == batch_Idx
 	// for dall'inizio del batch alla fine del batch 
-
-	// filling nseq_offset
 	for(int window_idx = first_el; window_idx < first_el + BDIM && window_idx < reads.size(); window_idx++) {
 		
 		nseq_offsets[window_idx - first_el] = reads[window_idx].size();
 	}
 	partial_sum(nseq_offsets.begin(),nseq_offsets.end(),nseq_offsets.begin());
-
-
-	// printing things
-	for(int i = first_el; i < BDIM + first_el && i < reads.size(); i++) {
-		cout << nseq_offsets[i - first_el] << " ";
-	}
-	cout << endl;
-
-
 	*tot_nseq = nseq_offsets[n-1];
 	seq_offsets = vector<int>(*tot_nseq);
-
-	cout << "tot seq = " << *tot_nseq << endl;
 	
 	int sequence_idx = 0;
 	for(int window_idx = first_el; window_idx < first_el + BDIM && window_idx < reads.size(); window_idx++) {
@@ -134,19 +116,6 @@ void init_kernel_block_parameters(vector<vector<string>> &reads, char** sequence
 		}
 	}
 	partial_sum(seq_offsets.begin(), seq_offsets.end(), seq_offsets.begin());
-
-	// printing things (sembrerebbe che l'offset sia in termini di numero di caratteri)
-	int numReads = 0;
-	for(int i = 0; i < reads.size(); i++){
-		numReads += reads[i].size();
-	}
-	cout << "numReads = " << numReads << endl;
-	for(int i = first_el; i < BDIM * WL && i < numReads + first_el && i < first_el + BDIM * reads[0].size(); i++) {
-		cout << seq_offsets[i - first_el] << " ";
-	}
-	cout << endl;
-
-
 	int tot_size = seq_offsets[sequence_idx-1];
 	*sequences = (char*)malloc(tot_size);
 	sequence_idx = 0;
@@ -226,33 +195,28 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T) {
 		for(int i = 0; i < WL; i++){
 			generate_lpo<<<BLOCKS, SL+1>>>(T.sequences_d, T.seq_offsets_d, T.nseq_offsets_d, i);
 		}
-
+		
 		int i_seq_idx = 0;
+		
+		printf("\n\nGRAPH CREATED --> BEGIN ALIGNMENT\n");
 
-		for(int j_seq_idx = 0; j_seq_idx < WL; j_seq_idx++) {
+		cudaStreamSynchronize(0);
 
-			cout << "BLOCKS = " << BLOCKS << "   BDIM = " << BDIM << "   WL = " << WL << "   N_BL = " << N_BL << "   j_seq_idx = " << j_seq_idx << "   i_seq_idx = " << i_seq_idx << endl;		
-			
-			printf("\n\nGRAPH CREATED --> BEGIN ALIGNMENT\n");
+		// parametro 3 da sostituire !!!
 
-			cudaStreamSynchronize(0);
-
-			// parametro 3 da sostituire !!!
-
-			// prossimi 2 kernel servono solo e soltanto per la dpMatrix ??
-					
-			compute_d_offsets<<<BLOCKS, 1>>>(i_seq_idx, j_seq_idx, T.nseq_offsets_d);
-			
-			cudaStreamSynchronize(0); 
-			
-			init_diagonals<<<BLOCKS,1>>>(i_seq_idx, j_seq_idx, T.max_gapl, T.uses_global, T.nseq_offsets_d);
-			
-			//cout << "Alignment kernel call\n";
-			
-			sw_align<<<BLOCKS, SL+1>>>(i_seq_idx, j_seq_idx, T.max_gapl, T.uses_global, T.nseq_offsets_d);
-			
-			cudaStreamSynchronize(0);
-		}
+		// prossimi 2 kernel servono solo e soltanto per la dpMatrix ??
+				
+		compute_d_offsets<<<BLOCKS, 1>>>(i_seq_idx, 1, T.nseq_offsets_d);
+		
+		cudaStreamSynchronize(0); 
+		
+		init_diagonals<<<BLOCKS,1>>>(i_seq_idx, 1, T.max_gapl, T.uses_global, T.nseq_offsets_d);
+		
+		//cout << "Alignment kernel call\n";
+		
+		sw_align<<<BLOCKS, SL+1>>>(i_seq_idx, 1, T.max_gapl, T.uses_global, T.nseq_offsets_d);
+		
+		cudaStreamSynchronize(0);
 
     }
 }

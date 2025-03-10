@@ -6,9 +6,7 @@
 #include <random>
 #include "task.h"
 
-typedef uint32_t kmer;
 typedef short Edge;
-
 
 using namespace std;
 

@@ -65,6 +65,9 @@ __global__ void assign_device_memory(int* ledges_offs, unsigned char* lletters, 
 									unsigned char* d_seq_ids, unsigned char* moves, short* diagonals_sc, short* diagonals_gx, short* diagonals_gy, 
 									int* d_offs, int* xy, int* yx, int* dynlg, const int num_blocks){
 	
+
+	// assegno puntatori allocati sull'host che puntano a memoria allocata sul device a puntatori allocati sul device
+
 	lpo_edge_offsets = ledges_offs;
 	lpo_letters = lletters;
 	lpo_edges = ledges;
@@ -285,7 +288,6 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 
  __global__ void sw_align(int i_seq_idx, int j_seq_idx, int max_gapl, int uses_global, int* nseq_offsets) {
 	
-	printf("threadIdx = %d\n", threadIdx.x);
 	if(g_space_exceeded) return;
 
 	int myId = blockIdx.x;
@@ -565,18 +567,18 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 			__syncthreads();
 
 			// aaggiunto da me: solo un thread stampa la diagonale corrente
-			if (threadIdx.x == 0 && blockIdx.x == 0) {
-				printf("Printing DP Matrix: \n");
-				int end = (n<(len_x + len_y)) ? d_offsets[n + 1] : (len_x+1) *(len_y+1);
-				// printf("Diagonal %d, (%d %d %d):", n, d_offsets[n], d_offsets[n + 1], end);
-				printf("Diagonal %d:", n);
-				for (int d = d_offsets[n]; d < end; d++) {
-					// printf("(%d %d)", diagonals_sc[d], d);
-					printf("(%d)", diagonals_sc[d]);
-				}
-				printf("\n");
-			}
-			__syncthreads();
+			// if (threadIdx.x == 0 && blockIdx.x == 0) {
+			// 	// printf("Printing DP Matrix: \n");
+			// 	int end = (n<(len_x + len_y)) ? d_offsets[n + 1] : (len_x+1) *(len_y+1);
+			// 	// printf("Diagonal %d, (%d %d %d):", n, d_offsets[n], d_offsets[n + 1], end);
+			// 	printf("Diagonal %d:", n);
+			// 	for (int d = d_offsets[n]; d < end; d++) {
+			// 		// printf("(%d %d)", diagonals_sc[d], d);
+			// 		printf("(%d)", diagonals_sc[d]);
+			// 	}
+			// 	printf("\n");
+			// }
+			// __syncthreads();
 		}
 
 		max = blockReduceMax<(SL+1) / wrapSize>(max);
