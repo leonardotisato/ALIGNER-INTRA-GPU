@@ -135,19 +135,23 @@ void init_kernel_block_parameters(vector<vector<string>> &reads, char** sequence
 	}
 	partial_sum(seq_offsets.begin(), seq_offsets.end(), seq_offsets.begin());
 
-	// printing things (sembrerebbe che l'offset sia in termini di numero di caratteri)
+	// printing things (sembrerebbe che seq_offsets sia in termini di numero di caratteri)
 	int numReads = 0;
 	for(int i = 0; i < reads.size(); i++){
 		numReads += reads[i].size();
 	}
 	cout << "numReads = " << numReads << endl;
+	// upper bound of the forcycle isn'st correct (reads index should be updated (not as I))
 	for(int i = first_el; i < BDIM * WL && i < numReads + first_el && i < first_el + BDIM * reads[0].size(); i++) {
 		cout << seq_offsets[i - first_el] << " ";
 	}
 	cout << endl;
 
-
+	// tot size è in numero di caratteri
 	int tot_size = seq_offsets[sequence_idx-1];
+
+	cout << "tot_size = " << tot_size << endl;
+
 	*sequences = (char*)malloc(tot_size);
 	sequence_idx = 0;
 
@@ -204,7 +208,7 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T) {
 			BLOCKS = BDIM;
 		}
 
-		init_kernel_block_parameters(reads, &T.sequences, T.nseq_offsets, T.seq_offsets, &T.tot_nseq, block_offset);
+		init_kernel_block_parameters(reads, &T.sequences, T.nseq_offsets, T.seq_offsets, &T.tot_nseq, block_offset); //block_offset=0
 		
 		//cout << "Start memcpy\n";
 		//cout << "Memcpy of " << T.seq_offsets[T.tot_nseq-1] << " bytes\n";
@@ -217,6 +221,7 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T) {
 		//cout << "Compute edge offsets\n";
 
 		// numThread == WL ??
+		// devo avere numReads / BDIM threads
 		compute_edge_offsets<<<BLOCKS, WL>>>(T.seq_offsets_d, T.nseq_offsets_d);
 		
 		cudaStreamSynchronize(0);
@@ -233,7 +238,7 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T) {
 
 			cout << "BLOCKS = " << BLOCKS << "   BDIM = " << BDIM << "   WL = " << WL << "   N_BL = " << N_BL << "   j_seq_idx = " << j_seq_idx << "   i_seq_idx = " << i_seq_idx << endl;		
 			
-			printf("\n\nGRAPH CREATED --> BEGIN ALIGNMENT\n");
+			// printf("\n\nGRAPH CREATED --> BEGIN ALIGNMENT\n");
 
 			cudaStreamSynchronize(0);
 

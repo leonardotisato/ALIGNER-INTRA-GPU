@@ -31,47 +31,55 @@ int check_input_int(string &arg){
 void read_batch(vector<vector<string>> &reads, size_t size, string filename){
 
 	ifstream infile(filename);
-    int i = 0;
-
     if (!infile.is_open()) {
-        std::cerr << "Errore: Impossibile aprire il file " << filename << std::endl;
+        cerr << "Errore: Impossibile aprire il file " << filename << endl;
         return;
     }
 
     string line;
-    vector<string> readsVector;
+    vector<string> allReads;
 
-    // Lettura del file FASTA o simile
+    // Legge l'intero file e raccoglie le righe utili (non intestazioni, non vuote)
     while (getline(infile, line)) {
         // Rimozione spazi bianchi iniziali e finali
         line.erase(0, line.find_first_not_of(" \t\n\r"));
-        if (!line.empty()) {
+        if (!line.empty())
             line.erase(line.find_last_not_of(" \t\n\r") + 1);
-        }
 
-        if (line.empty() || line[0] == '>') continue;
-
-        readsVector.push_back(line);         
-
-		i++;
-		if(i % size == 0) {
-			reads.push_back(readsVector);
-			readsVector.clear();
-		}
+        // Salta righe vuote o linee di intestazione (che iniziano con '>')
+        if (line.empty() || line[0] == '>')
+            continue;
+        allReads.push_back(line);
     }
-
-	
-
-	if (!readsVector.empty()) {
-        reads.push_back(readsVector);
-    }
-
     infile.close();
+
+    // Calcola il numero totale di reads e la dimensione base per ogni gruppo
+    int total = allReads.size();
+    int base = total / size;
+    int remainder = total % size; // i primi "remainder" gruppi avranno 1 elemento in più
+
+    int index = 0;
+    for (size_t group = 0; group < size; group++) {
+        // Per ogni gruppo, calcola quanti elementi deve avere
+        int groupSize = base + (group < remainder ? 1 : 0);
+        vector<string> groupReads;
+        for (int j = 0; j < groupSize; j++) {
+            groupReads.push_back(allReads[index++]);
+        }
+        reads.push_back(groupReads);
+    }
+
+    // cout << "Distribuzione effettuata: " << endl;
+    // for (size_t i = 0; i < reads.size(); i++) {
+    //     cout << "Gruppo " << i << " ha " << reads[i].size() << " reads" << endl;
+    // }
 }
 
 void print_reads(vector<vector<string>> reads) {
-	
+
+	cout << "Printing reads: "<< endl;
 	for(int i = 0; i < reads.size(); i++) {
+		cout << i << endl;
 		cout << "Batch " << i << endl;
 		for(int j = 0; j < reads[i].size(); j++) {
 			cout << reads[i][j] << endl;

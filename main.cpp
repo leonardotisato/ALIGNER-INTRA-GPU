@@ -78,15 +78,15 @@ int main(int argc, char* argv[]) {
 	}
 	vector<vector<string>> reads;
 	
+	
 	if(read_from_file){
 		string filepath(path_ref);
 		cout << "*** ATTEMPTING TO READ FROM " << filepath << " SAMPLE OF SIZE " << N_ALIGNMENTS << " ***" << endl;
 		read_batch(reads, NUM_BLOCKS, filepath);
-		cout << "Read " << reads.size() << " alignments" << endl;
+		
 	}else{
-		cerr << "Invalid input";
+		cerr << "Invalid file name";
 	}
-
 
 	// print_reads(reads);
 
