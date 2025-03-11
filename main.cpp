@@ -88,12 +88,12 @@ int main(int argc, char* argv[]) {
 		cerr << "Invalid file name";
 	}
 
-	// print_reads(reads);
+	print_reads(reads);
 
 	//SIMPLE GPU EXECUTION SINGLE KERNEL
 	int c = 0;
 
-	get_bmean_batch_result_gpu(reads, c);
+	get_bmean_batch_result_gpu(reads, c, NUM_BLOCKS);
 
 	
 	return 0;

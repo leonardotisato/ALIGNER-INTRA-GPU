@@ -18,7 +18,7 @@
 #define SL 32
 #define MAXL 10
 #define	WL 10
-#define BDIM 10
+// #define numBlocks 10
 
 #define EDGE_F 3 // Heuristic mean degree for graphs
 #define N_THREADS 64
@@ -40,46 +40,46 @@ inline void gpuAssert(cudaError_t code, const char* file, int line, bool abort =
 }
 
 
-inline void gpu_POA_alloc(TaskRefs &T){
+inline void gpu_POA_alloc(TaskRefs &T, const int numBlocks){
 
 	// alloco memoria sul device, la memoria è puntata da puntatori che risiedono sulla memoria host
 
 	// dimensione memoria allocata dipendente dal numero di blocchi ??
 	// spazi allocati dipendenti da WL ??
 
-	T.result = (char*)malloc(WL * MAXL * BDIM);
-	T.res_size = (int*)malloc(BDIM * sizeof(int));
+	T.result = (char*)malloc(WL * MAXL * numBlocks);
+	T.res_size = (int*)malloc(numBlocks * sizeof(int));
 
 	cudaErrchk(cudaMalloc(&T.space_exceeded, sizeof(int)));
 
-	cudaErrchk(cudaMalloc(&T.dyn_len_global_d, (unsigned long long)BDIM * sizeof(int)));
+	cudaErrchk(cudaMalloc(&T.dyn_len_global_d, (unsigned long long)numBlocks * sizeof(int)));
 
-	cudaErrchk(cudaMalloc(&T.sequences_d, (unsigned long long)SL * WL * BDIM)); 
-	cudaErrchk(cudaMalloc(&T.seq_offsets_d, (unsigned long long)BDIM * WL * sizeof(int))); 
-	cudaErrchk(cudaMalloc(&T.nseq_offsets_d, (unsigned long long)BDIM * sizeof(int))); 
-	cudaErrchk(cudaMalloc(&T.result_d, (unsigned long long)MAXL * WL * BDIM)); 
-	cudaErrchk(cudaMalloc(&T.res_size_d, (unsigned long long)BDIM * sizeof(int)));
+	cudaErrchk(cudaMalloc(&T.sequences_d, (unsigned long long)SL * WL * numBlocks)); 
+	cudaErrchk(cudaMalloc(&T.seq_offsets_d, (unsigned long long)numBlocks * WL * sizeof(int))); 
+	cudaErrchk(cudaMalloc(&T.nseq_offsets_d, (unsigned long long)numBlocks * sizeof(int))); 
+	cudaErrchk(cudaMalloc(&T.result_d, (unsigned long long)MAXL * WL * numBlocks)); 
+	cudaErrchk(cudaMalloc(&T.res_size_d, (unsigned long long)numBlocks * sizeof(int)));
 
-	cudaErrchk(cudaMalloc(&T.lpo_edge_offsets_d, (unsigned long long)WL * BDIM * sizeof(int)));
-	cudaErrchk(cudaMalloc(&T.lpo_letters_d, (unsigned long long)WL * SL * BDIM));
-	cudaErrchk(cudaMalloc(&T.lpo_edges_d, (unsigned long long)WL * SL * EDGE_F * BDIM * sizeof(Edge)));
-	cudaErrchk(cudaMalloc(&T.edge_bounds_d, (unsigned long long)WL * (SL+1) * BDIM * sizeof(int)));	
-	cudaErrchk(cudaMalloc(&T.end_nodes_d, (unsigned long long)WL * SL * BDIM));
-	cudaErrchk(cudaMalloc(&T.sequence_ids_d, (unsigned long long)WL * WL * SL * BDIM));
+	cudaErrchk(cudaMalloc(&T.lpo_edge_offsets_d, (unsigned long long)WL * numBlocks * sizeof(int)));
+	cudaErrchk(cudaMalloc(&T.lpo_letters_d, (unsigned long long)WL * SL * numBlocks));
+	cudaErrchk(cudaMalloc(&T.lpo_edges_d, (unsigned long long)WL * SL * EDGE_F * numBlocks * sizeof(Edge)));
+	cudaErrchk(cudaMalloc(&T.edge_bounds_d, (unsigned long long)WL * (SL+1) * numBlocks * sizeof(int)));	
+	cudaErrchk(cudaMalloc(&T.end_nodes_d, (unsigned long long)WL * SL * numBlocks));
+	cudaErrchk(cudaMalloc(&T.sequence_ids_d, (unsigned long long)WL * WL * SL * numBlocks));
 
-	cudaErrchk(cudaMalloc(&T.dyn_letters_global_d, (unsigned long long)MAXL * BDIM));
-	cudaErrchk(cudaMalloc(&T.dyn_edges_global_d, (unsigned long long)MAXL * EDGE_F * BDIM * sizeof(Edge)));
-	cudaErrchk(cudaMalloc(&T.dyn_edge_bounds_global_d, (unsigned long long)(MAXL+1) * BDIM * sizeof(int)));
-	cudaErrchk(cudaMalloc(&T.dyn_end_nodes_global_d, (unsigned long long)MAXL * BDIM));
-	cudaErrchk(cudaMalloc(&T.dyn_sequence_ids_global_d, (unsigned long long)WL * MAXL * BDIM));
+	cudaErrchk(cudaMalloc(&T.dyn_letters_global_d, (unsigned long long)MAXL * numBlocks));
+	cudaErrchk(cudaMalloc(&T.dyn_edges_global_d, (unsigned long long)MAXL * EDGE_F * numBlocks * sizeof(Edge)));
+	cudaErrchk(cudaMalloc(&T.dyn_edge_bounds_global_d, (unsigned long long)(MAXL+1) * numBlocks * sizeof(int)));
+	cudaErrchk(cudaMalloc(&T.dyn_end_nodes_global_d, (unsigned long long)MAXL * numBlocks));
+	cudaErrchk(cudaMalloc(&T.dyn_sequence_ids_global_d, (unsigned long long)WL * MAXL * numBlocks));
 
-	cudaErrchk(cudaMalloc(&T.moves_global_d, (unsigned long long)2 * (MAXL+1) * (SL+1) * BDIM * sizeof(unsigned char)));
-	cudaErrchk(cudaMalloc(&T.diagonals_global_sc_d, (unsigned long long)(MAXL+1)*(SL+1) * BDIM * sizeof(short)));
-	cudaErrchk(cudaMalloc(&T.diagonals_global_gx_d, (unsigned long long)(MAXL+1)*(SL+1) * BDIM * sizeof(short)));
-	cudaErrchk(cudaMalloc(&T.diagonals_global_gy_d, (unsigned long long)(MAXL+1)*(SL+1) * BDIM * sizeof(short)));
-	cudaErrchk(cudaMalloc(&T.d_offsets_global_d, (unsigned long long)(MAXL + SL+1) * BDIM * sizeof(int)));
-	cudaErrchk(cudaMalloc(&T.x_to_ys_d, (unsigned long long)MAXL * BDIM * sizeof(int)));
-	cudaErrchk(cudaMalloc(&T.y_to_xs_d, (unsigned long long)MAXL * BDIM * sizeof(int)));
+	cudaErrchk(cudaMalloc(&T.moves_global_d, (unsigned long long)2 * (MAXL+1) * (SL+1) * numBlocks * sizeof(unsigned char)));
+	cudaErrchk(cudaMalloc(&T.diagonals_global_sc_d, (unsigned long long)(MAXL+1)*(SL+1) * numBlocks * sizeof(short)));
+	cudaErrchk(cudaMalloc(&T.diagonals_global_gx_d, (unsigned long long)(MAXL+1)*(SL+1) * numBlocks * sizeof(short)));
+	cudaErrchk(cudaMalloc(&T.diagonals_global_gy_d, (unsigned long long)(MAXL+1)*(SL+1) * numBlocks * sizeof(short)));
+	cudaErrchk(cudaMalloc(&T.d_offsets_global_d, (unsigned long long)(MAXL + SL+1) * numBlocks * sizeof(int)));
+	cudaErrchk(cudaMalloc(&T.x_to_ys_d, (unsigned long long)MAXL * numBlocks * sizeof(int)));
+	cudaErrchk(cudaMalloc(&T.y_to_xs_d, (unsigned long long)MAXL * numBlocks * sizeof(int)));
 	//cout << "Alloc completed\n";
 }
 
@@ -95,17 +95,17 @@ inline void gpu_POA_free(TaskRefs &T){
 static const int NOT_ALIGNED = -1;
 
 void init_kernel_block_parameters(vector<vector<string>> &reads, char** sequences, vector<int> &nseq_offsets, 
-								vector<int> &seq_offsets, int* tot_nseq, int first_el) {
+								vector<int> &seq_offsets, int* tot_nseq, int first_el, const int numBlocks) {
 
 	cout << "FIRST EL = " << first_el << endl;
 						
-	int n = (first_el + BDIM < reads.size()) ? BDIM : reads.size() - first_el;
+	int n = (first_el + numBlocks < reads.size()) ? numBlocks : reads.size() - first_el;
 
 	// first_el == batch_Idx
 	// for dall'inizio del batch alla fine del batch 
 
 	// filling nseq_offset
-	for(int window_idx = first_el; window_idx < first_el + BDIM && window_idx < reads.size(); window_idx++) {
+	for(int window_idx = first_el; window_idx < first_el + numBlocks && window_idx < reads.size(); window_idx++) {
 		
 		nseq_offsets[window_idx - first_el] = reads[window_idx].size();
 	}
@@ -113,7 +113,7 @@ void init_kernel_block_parameters(vector<vector<string>> &reads, char** sequence
 
 
 	// printing things
-	for(int i = first_el; i < BDIM + first_el && i < reads.size(); i++) {
+	for(int i = first_el; i < numBlocks + first_el && i < reads.size(); i++) {
 		cout << nseq_offsets[i - first_el] << " ";
 	}
 	cout << endl;
@@ -125,7 +125,7 @@ void init_kernel_block_parameters(vector<vector<string>> &reads, char** sequence
 	cout << "tot seq = " << *tot_nseq << endl;
 	
 	int sequence_idx = 0;
-	for(int window_idx = first_el; window_idx < first_el + BDIM && window_idx < reads.size(); window_idx++) {
+	for(int window_idx = first_el; window_idx < first_el + numBlocks && window_idx < reads.size(); window_idx++) {
 		vector<string> &window = reads[window_idx];			
 		int wsize = window.size();
 		for(int i = 0; i < wsize; i++) {
@@ -142,7 +142,7 @@ void init_kernel_block_parameters(vector<vector<string>> &reads, char** sequence
 	}
 	cout << "numReads = " << numReads << endl;
 	// upper bound of the forcycle isn'st correct (reads index should be updated (not as I))
-	for(int i = first_el; i < BDIM * WL && i < numReads + first_el && i < first_el + BDIM * reads[0].size(); i++) {
+	for(int i = first_el; i < numBlocks * WL && i < numReads + first_el && i < first_el + numBlocks * reads[0].size(); i++) {
 		cout << seq_offsets[i - first_el] << " ";
 	}
 	cout << endl;
@@ -155,7 +155,7 @@ void init_kernel_block_parameters(vector<vector<string>> &reads, char** sequence
 	*sequences = (char*)malloc(tot_size);
 	sequence_idx = 0;
 
-	for(int window_idx = first_el; window_idx < first_el + BDIM && window_idx < reads.size(); window_idx++) {
+	for(int window_idx = first_el; window_idx < first_el + numBlocks && window_idx < reads.size(); window_idx++) {
 			
 		vector<string>& window = reads[window_idx];	
 		for(auto seq : window) {
@@ -173,18 +173,18 @@ void init_kernel_block_parameters(vector<vector<string>> &reads, char** sequence
 }
 
 
-void gpu_POA(vector<vector<string>> &reads, TaskRefs &T) {
+void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks) {
 	
 	int input_size = reads.size(); // prende il numero di task che è == numero di window
-	int N_BL = (input_size - 1) / BDIM + 1; // variabile dal dubbio significato (credo numero di batch) = ceil(input_size / BDIM)
+	int N_BL = (input_size - 1) / numBlocks + 1; // variabile dal dubbio significato (credo numero di batch) = ceil(input_size / numBlocks)
 	// cout << "N_BL = " << N_BL << endl;
-	int LAST_BATCH_SIZE = (input_size - 1) % BDIM + 1; 
+	int LAST_BATCH_SIZE = (input_size - 1) % numBlocks + 1; 
 	int *space_exceeded = (int*)malloc(sizeof(int));
 
 	vector<vector<string>> result_data(input_size);
 
 
-	T.nseq_offsets = vector<int>(BDIM);
+	T.nseq_offsets = vector<int>(numBlocks);
 
 	// assegna ai puntatori allocati sul device i puntatori di T
 	assign_device_memory<<<1, 1>>>(T.lpo_edge_offsets_d, T.lpo_letters_d, T.lpo_edges_d, 
@@ -192,7 +192,7 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T) {
 				       T.dyn_letters_global_d, T.dyn_edges_global_d, T.dyn_edge_bounds_global_d, 
 				       T.dyn_end_nodes_global_d, T.dyn_sequence_ids_global_d,
 				       T.moves_global_d, T.diagonals_global_sc_d, T.diagonals_global_gx_d, T.diagonals_global_gy_d, 
-                                       T.d_offsets_global_d, T.x_to_ys_d, T.y_to_xs_d, T.dyn_len_global_d, BDIM);
+                                       T.d_offsets_global_d, T.x_to_ys_d, T.y_to_xs_d, T.dyn_len_global_d, numBlocks);
 
 	cudaStreamSynchronize(0);
 
@@ -200,15 +200,15 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T) {
 
 		cout << "\n" << b << "th iteration" << endl;
 
-		int block_offset = b * BDIM;
+		int block_offset = b * numBlocks;
 		int BLOCKS;
 		if(b == N_BL-1){
 			BLOCKS = LAST_BATCH_SIZE;
 		}else{
-			BLOCKS = BDIM;
+			BLOCKS = numBlocks;
 		}
 
-		init_kernel_block_parameters(reads, &T.sequences, T.nseq_offsets, T.seq_offsets, &T.tot_nseq, block_offset); //block_offset=0
+		init_kernel_block_parameters(reads, &T.sequences, T.nseq_offsets, T.seq_offsets, &T.tot_nseq, block_offset, numBlocks); //block_offset=0
 		
 		//cout << "Start memcpy\n";
 		//cout << "Memcpy of " << T.seq_offsets[T.tot_nseq-1] << " bytes\n";
@@ -221,7 +221,7 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T) {
 		//cout << "Compute edge offsets\n";
 
 		// numThread == WL ??
-		// devo avere numReads / BDIM threads
+		// devo avere numReads / numBlocks threads
 		compute_edge_offsets<<<BLOCKS, WL>>>(T.seq_offsets_d, T.nseq_offsets_d);
 		
 		cudaStreamSynchronize(0);
@@ -236,7 +236,7 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T) {
 
 		for(int j_seq_idx = 0; j_seq_idx < WL; j_seq_idx++) {
 
-			cout << "BLOCKS = " << BLOCKS << "   BDIM = " << BDIM << "   WL = " << WL << "   N_BL = " << N_BL << "   j_seq_idx = " << j_seq_idx << "   i_seq_idx = " << i_seq_idx << endl;		
+			cout << "BLOCKS = " << BLOCKS << "   numBlocks = " << numBlocks << "   WL = " << WL << "   N_BL = " << N_BL << "   j_seq_idx = " << j_seq_idx << "   i_seq_idx = " << i_seq_idx << endl;		
 			
 			// printf("\n\nGRAPH CREATED --> BEGIN ALIGNMENT\n");
 
