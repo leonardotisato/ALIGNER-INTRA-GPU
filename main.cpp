@@ -90,10 +90,17 @@ int main(int argc, char* argv[]) {
 
 	print_reads(reads);
 
+	int numReads = 0;
+	for(int i = 0; i < reads.size(); i++) {
+		numReads += reads[i].size();
+	}
+
+	int batchSize = (numReads - 1) / NUM_BLOCKS + 1;
+
 	//SIMPLE GPU EXECUTION SINGLE KERNEL
 	int c = 0;
 
-	get_bmean_batch_result_gpu(reads, c, NUM_BLOCKS);
+	get_bmean_batch_result_gpu(reads, c, NUM_BLOCKS, batchSize);
 
 	
 	return 0;

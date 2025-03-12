@@ -88,15 +88,15 @@ void print_reads(vector<vector<string>> reads) {
 }
 
 
-void get_bmean_batch_result_gpu(vector<vector<string>> reads, int &c, const int numBlocks){
+void get_bmean_batch_result_gpu(vector<vector<string>> reads, int &c, const int numBlocks, int batchSize){
 
 	poa_gpu_utils::TaskRefs T;		// struct con dentro TUUUUUTTO
 	// size_t size = reads.size();
 
 	auto start = NOW;
 
-	gpu_POA_alloc(T, numBlocks);
-	gpu_POA(reads, T, numBlocks);
+	gpu_POA_alloc(T, numBlocks, batchSize);
+	gpu_POA(reads, T, numBlocks, batchSize);
 	gpu_POA_free(T);
 
 	auto end = NOW;
