@@ -18,6 +18,8 @@ void print_reads(vector<vector<string>> reads);
 
 int check_input_int(string &arg);
 
+__global__ void printGraphStructure(int numBlocks, int batchStructure);
+
 __global__ void assign_device_memory(int* ledges_offs, unsigned char* lletters, Edge* ledges, int* ebounds, unsigned char* ennodes, 
                                     unsigned char* seq_ids, unsigned char* dletters, Edge* dedges, int* dedgebounds, unsigned char* d_end_nodes,
                                     unsigned char* d_seq_ids, unsigned char* moves, short* diagonals_sc, short* diagonals_gx, short* diagonals_gy, 

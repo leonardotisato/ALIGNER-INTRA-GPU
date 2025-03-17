@@ -60,6 +60,27 @@ __device__ int* x_to_ys;
 __device__ int* y_to_xs;
 __device__ int g_space_exceeded = 0;
 
+
+
+__global__ void printGraphStructure(int numBlocks, int batchSize) {
+	printf("Edge Bounds: ");
+	for(int i = 0; i < (MAXL + 1) * numBlocks; i++) {
+		printf("%d ", dyn_edge_bounds_global[i]);
+	}
+	printf("\n");
+	printf("End Nodes: ");
+	for(int i = 0; i < MAXL * numBlocks; i++) {
+		printf("%u ", dyn_end_nodes_global[i]);
+	}
+	printf("\n");
+	printf("Seq Ids: ");
+	for(int i = 0; i < MAXL * numBlocks * numBlocks; i++) {
+		printf("%u ", dyn_sequence_ids_global[i]);
+	}
+	printf("\n");
+}
+
+
 __global__ void assign_device_memory(int* ledges_offs, unsigned char* lletters, Edge* ledges, int* ebounds, unsigned char* ennodes, 
 									unsigned char* seq_ids, unsigned char* dletters, Edge* dedges, int* dedgebounds, unsigned char* d_end_nodes, 
 									unsigned char* d_seq_ids, unsigned char* moves, short* diagonals_sc, short* diagonals_gx, short* diagonals_gy, 

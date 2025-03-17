@@ -251,11 +251,13 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 			generate_lpo<<<BLOCKS, SL+1>>>(T.sequences_d, T.seq_offsets_d, T.nseq_offsets_d, i);
 		}
 
+		printGraphStructure<<<1,1>>>(numBlocks, batchSize);
+
 		int i_seq_idx = 0;
 
-		for(int j_seq_idx = 0; j_seq_idx < batchSize; j_seq_idx++) {
+		for(int j_seq_idx = 1; j_seq_idx < batchSize; j_seq_idx++) {
 
-			if(j_seq_idx == batchSize-1){
+			if(j_seq_idx == batchSize-1 && lastBatch != 0){
 				BLOCKS = lastBatch;
 			}else{
 				BLOCKS = numBlocks;
