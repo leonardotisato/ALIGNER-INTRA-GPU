@@ -436,7 +436,12 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 			// printf("%d\n", c);
 			if (c >= lower_bound && c < upper_bound) {
 
-				int match_score = ((uses_global == 0)-1) & (-999999);
+				int match_score = ((uses_global == 0)-1) & (-999999);  // matchScore = -999999
+				
+				// if (threadIdx.x == 0 && blockIdx.x == 0) {
+				// 	printf("Match score: %d\n", match_score);
+				// }
+
 				int match_x = 0;
 				int match_y = 0;
 
