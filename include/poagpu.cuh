@@ -54,6 +54,20 @@ inline void gpu_POA_alloc(TaskRefs &T, const int numBlocks, int batchSize){
 
 	cudaErrchk(cudaMalloc(&T.dyn_len_global_d, (unsigned long long)numBlocks * sizeof(int)));
 
+	// allocazione dell'array di struct (uno per blocco)
+	cudaErrchk(cudaMalloc((void**)T.g, numBlocks * sizeof(graph_d)));
+
+	// graph_d* h_graphs = (graph_d*)malloc(numBlocks * sizeof(graph_d));
+	for (int i = 0; i < numBlocks; i++) {
+    //    cudaErrchk(cudaMalloc((void**)&h_graphs[i].lpo_edge_offsets, batchSize * sizeof(int)));
+    //    cudaErrchk(cudaMalloc((void**)&h_graphs[i].lpo_edges, batchSize * EDGE_F * sizeof(Edge)));
+    //    cudaErrchk(cudaMalloc((void**)&h_graphs[i].lpo_letters, batchSize * sizeof(unsigned char)));
+
+		cudaErrchk(cudaMalloc((void**)&T.g[i].lpo_edge_offsets, batchSize * sizeof(int)));
+		cudaErrchk(cudaMalloc((void**)&T.g[i].lpo_edges, batchSize * EDGE_F * sizeof(Edge)));
+		cudaErrchk(cudaMalloc((void**)&T.g[i].lpo_letters, batchSize * sizeof(unsigned char)));
+   }
+
 	cudaErrchk(cudaMalloc(&T.sequences_d, (unsigned long long)SL * batchSize * numBlocks)); 
 	cudaErrchk(cudaMalloc(&T.seq_offsets_d, (unsigned long long)numBlocks * batchSize * sizeof(int))); 
 	cudaErrchk(cudaMalloc(&T.nseq_offsets_d, (unsigned long long)numBlocks * sizeof(int))); 
@@ -81,6 +95,13 @@ inline void gpu_POA_alloc(TaskRefs &T, const int numBlocks, int batchSize){
 	cudaErrchk(cudaMalloc(&T.x_to_ys_d, (unsigned long long)MAXL * numBlocks * sizeof(int)));
 	cudaErrchk(cudaMalloc(&T.y_to_xs_d, (unsigned long long)MAXL * numBlocks * sizeof(int)));
 	//cout << "Alloc completed\n";
+
+	for (int i = 0; i < numBlocks; i++) {
+		cudaFree(h_graphs[i].lpo_edge_offsets);
+		cudaFree(h_graphs[i].lpo_edges);
+		cudaFree(h_graphs[i].lpo_letters);
+	}
+	free(h_graphs);
 }
 
 inline void gpu_POA_free(TaskRefs &T){
@@ -89,6 +110,13 @@ inline void gpu_POA_free(TaskRefs &T){
 	
 	free(T.result);
 	free(T.res_size);
+
+	for (int i = 0; i < numBlocks; i++) {
+		cudaFree(T.g[i].lpo_edge_offsets);
+		cudaFree(T.g[i].lpo_edges);
+		cudaFree(T.g[i].lpo_letters);
+	}
+	free(T.g);
 
 }
 
@@ -247,6 +275,7 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 		
 		//cout << "Generate LPO\n";
 
+		// questo sarà da rimuovere
 		for(int i = 0; i < batchSize; i++){
 			generate_lpo<<<BLOCKS, SL+1>>>(T.sequences_d, T.seq_offsets_d, T.nseq_offsets_d, i);
 		}
