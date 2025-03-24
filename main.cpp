@@ -67,7 +67,7 @@ int main(int argc, char* argv[]) {
 		cerr << "Invalid file path provided";
 	}
 
-	// print_reads(reads);
+	print_reads(reads);
 
 	int numReads = 0;
 	for(int i = 0; i < reads.size(); i++) {

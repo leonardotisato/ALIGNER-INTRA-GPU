@@ -81,8 +81,7 @@ __global__ void printGraphStructure(int numBlocks, int batchSize) {
 
 __global__ void assign_device_memory(int* ledges_offs, unsigned char* lletters, Edge* ledges, int* ebounds, unsigned char* ennodes, 
 									unsigned char* dletters, Edge* dedges, int* dedgebounds, unsigned char* d_end_nodes, 
-									unsigned char* moves, short* diagonals_sc, short* diagonals_gx, short* diagonals_gy, 
-									int* d_offs, int* xy, int* yx, int* dynlg, const int num_blocks){
+									unsigned char* moves, short* diagonals_sc, int* d_offs, int* xy, int* yx, int* dynlg, const int num_blocks){
 	
 
 	// assegno puntatori allocati sull'host che puntano a memoria allocata sul device a puntatori allocati sul device

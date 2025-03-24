@@ -39,10 +39,7 @@ inline void gpuAssert(cudaError_t code, const char* file, int line, bool abort =
 
 inline void gpu_POA_alloc(TaskRefs &T, const int numBlocks, int batchSize){
 
-	// alloco memoria sul device, la memoria è puntata da puntatori che risiedono sulla memoria host
-
-	// dimensione memoria allocata dipendente dal numero di blocchi ??
-	// spazi allocati dipendenti da batchSize ??
+	// alloco memoria sul device, la memoria è puntata da puntatori che risiedono sulla memoria dell'host
 
 	T.result = (char*)malloc(batchSize * MAXL * numBlocks);
 	T.res_size = (int*)malloc(numBlocks * sizeof(int));
@@ -76,18 +73,15 @@ inline void gpu_POA_alloc(TaskRefs &T, const int numBlocks, int batchSize){
 	cudaErrchk(cudaMalloc(&T.lpo_edges_d, (unsigned long long)batchSize * SL * EDGE_F * numBlocks * sizeof(Edge)));
 	cudaErrchk(cudaMalloc(&T.edge_bounds_d, (unsigned long long)batchSize * (SL+1) * numBlocks * sizeof(int)));	
 	cudaErrchk(cudaMalloc(&T.end_nodes_d, (unsigned long long)batchSize * SL * numBlocks));
-	// cudaErrchk(cudaMalloc(&T.sequence_ids_d, (unsigned long long)batchSize * batchSize * SL * numBlocks));
 
 	cudaErrchk(cudaMalloc(&T.dyn_letters_global_d, (unsigned long long)MAXL * numBlocks));
 	cudaErrchk(cudaMalloc(&T.dyn_edges_global_d, (unsigned long long)MAXL * EDGE_F * numBlocks * sizeof(Edge)));
 	cudaErrchk(cudaMalloc(&T.dyn_edge_bounds_global_d, (unsigned long long)(MAXL+1) * numBlocks * sizeof(int)));
 	cudaErrchk(cudaMalloc(&T.dyn_end_nodes_global_d, (unsigned long long)MAXL * numBlocks));
-	// cudaErrchk(cudaMalloc(&T.dyn_sequence_ids_global_d, (unsigned long long)batchSize * MAXL * numBlocks));
-
+	
 	cudaErrchk(cudaMalloc(&T.moves_global_d, (unsigned long long)2 * (MAXL+1) * (SL+1) * numBlocks * sizeof(unsigned char)));
 	cudaErrchk(cudaMalloc(&T.diagonals_global_sc_d, (unsigned long long)(MAXL+1)*(SL+1) * numBlocks * sizeof(short)));
-	// cudaErrchk(cudaMalloc(&T.diagonals_global_gx_d, (unsigned long long)(MAXL+1)*(SL+1) * numBlocks * sizeof(short)));
-	// cudaErrchk(cudaMalloc(&T.diagonals_global_gy_d, (unsigned long long)(MAXL+1)*(SL+1) * numBlocks * sizeof(short)));
+
 	cudaErrchk(cudaMalloc(&T.d_offsets_global_d, (unsigned long long)(MAXL + SL+1) * numBlocks * sizeof(int)));
 	cudaErrchk(cudaMalloc(&T.x_to_ys_d, (unsigned long long)MAXL * numBlocks * sizeof(int)));
 	cudaErrchk(cudaMalloc(&T.y_to_xs_d, (unsigned long long)MAXL * numBlocks * sizeof(int)));
@@ -207,27 +201,15 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 
 	int lastBatch = numReads % numBlocks;
 
-	// int batchSize = (numReads - 1) / numBlocks + 1;
-	
-	// int input_size = reads.size(); // prende il numero di task che è == numero di window
-	// int N_BL = (input_size - 1) / numBlocks + 1; // variabile dal dubbio significato (credo numero di batch) = ceil(input_size / numBlocks)
-	// cout << "N_BL = " << N_BL << endl;
-	// int LAST_BATCH_SIZE = (input_size - 1) % numBlocks + 1; 
-
 	int *space_exceeded = (int*)malloc(sizeof(int));
-
-	// vector<vector<string>> result_data(input_size);
-
 
 	T.nseq_offsets = vector<int>(numBlocks);
 
 	// assegna ai puntatori allocati sul device i puntatori di T
 	assign_device_memory<<<1, 1>>>(T.lpo_edge_offsets_d, T.lpo_letters_d, T.lpo_edges_d, 
-				       T.edge_bounds_d, T.end_nodes_d, /* T.sequence_ids_d, */ 
-				       T.dyn_letters_global_d, T.dyn_edges_global_d, T.dyn_edge_bounds_global_d, 
-				       T.dyn_end_nodes_global_d, /* T.dyn_sequence_ids_global_d, */
-				       T.moves_global_d, T.diagonals_global_sc_d, T.diagonals_global_gx_d, T.diagonals_global_gy_d, 
-                                       T.d_offsets_global_d, T.x_to_ys_d, T.y_to_xs_d, T.dyn_len_global_d, numBlocks);
+				       T.edge_bounds_d, T.end_nodes_d, T.dyn_letters_global_d, T.dyn_edges_global_d, T.dyn_edge_bounds_global_d, 
+				       T.dyn_end_nodes_global_d, T.moves_global_d, T.diagonals_global_sc_d, 
+                       T.d_offsets_global_d, T.x_to_ys_d, T.y_to_xs_d, T.dyn_len_global_d, numBlocks);
 
 	cudaStreamSynchronize(0);
 
@@ -235,9 +217,6 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 	int BLOCKS = numBlocks;
 	
 	init_kernel_block_parameters(reads, &T.sequences, T.nseq_offsets, T.seq_offsets, &T.tot_nseq, block_offset, numBlocks, batchSize); //block_offset=0
-	
-	//cout << "Start memcpy\n";
-	//cout << "Memcpy of " << T.seq_offsets[T.tot_nseq-1] << " bytes\n";
 	
 	cudaErrchk(cudaMemcpy(T.space_exceeded, space_exceeded, sizeof(int), cudaMemcpyHostToDevice));
 	cudaErrchk(cudaMemcpy(T.sequences_d, T.sequences, T.seq_offsets[T.tot_nseq-1], cudaMemcpyHostToDevice));
