@@ -19,11 +19,6 @@
 #include "include/poa.h"
 
 #define EDGE_F 3 // Heuristic mean degree for graphs
-#define N_THREADS 64
-
-#define MIN_SLEN 1
-#define MIN_WLEN 2
-
 
 using namespace std;
 using namespace chrono;
@@ -31,28 +26,19 @@ using namespace chrono;
 #define NOW high_resolution_clock::now()
 
 
-// constexpr unsigned int n_threads = 80;
-
-
 int main(int argc, char* argv[]) {
-
-	/* cambiato il nome di WLEN in NUM_BLOCKS, la modifica, qua visiva deve essere apportata, sia fisicamente, 
-	che nelle implementazioni delle altre funzioni nel resto del codice (potrebbe proprio cambiare la logica
-	di alcune funzioni)*/
-
-	// N_ALIGNMENTS è prob inutile, il numero di reads è da calcolare in qualche modo non ancora scritto (ma banale)
 
 	bool read_from_file = false;
 	char* path_ref;	
 	
-	if(argc < 4){
+	if(argc < 3){
 		cout << "Invalid arguments. Call this program as: ./poa maxSeqSize maxWindowSize sampleSize [read_file.pow]" << endl;
 		return 0;
 	}
 
-	if(argc == 5){
+	if(argc == 4){
 		read_from_file = true;
-		path_ref = argv[4];
+		path_ref = argv[3];
 	}
 	
 	string max_seq_size = argv[1];
@@ -60,9 +46,6 @@ int main(int argc, char* argv[]) {
 	
 	string max_w_size = argv[2];
 	const int NUM_BLOCKS = check_input_int(max_w_size);		
-	
-	string sample_size = argv[3];
-	const int N_ALIGNMENTS = check_input_int(sample_size);		
 
 	if(MAX_SEQ_LEN < 0){
 		cout << "Invalid max sequence length provided" << endl;
@@ -72,23 +55,19 @@ int main(int argc, char* argv[]) {
 		cout << "Invalid max window size provided" << endl;
 		return 0;
 	}
-	if(N_ALIGNMENTS < 0){
-		cout << "Invalid max window size provided" << endl;
-		return 0;
-	}
+
 	vector<vector<string>> reads;
-	
 	
 	if(read_from_file){
 		string filepath(path_ref);
-		cout << "*** ATTEMPTING TO READ FROM " << filepath << " SAMPLE OF SIZE " << N_ALIGNMENTS << " ***" << endl;
+		cout << "*** ATTEMPTING TO READ FROM " << filepath << endl;
 		read_batch(reads, NUM_BLOCKS, filepath);
 		
 	}else{
-		cerr << "Invalid file name";
+		cerr << "Invalid file path provided";
 	}
 
-	print_reads(reads);
+	// print_reads(reads);
 
 	int numReads = 0;
 	for(int i = 0; i < reads.size(); i++) {
