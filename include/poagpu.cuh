@@ -183,16 +183,15 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 	int lastBatch = numReads % numBlocks;
 
 	// int batchSize = (numReads - 1) / numBlocks + 1;
-
 	
-	
-	int input_size = reads.size(); // prende il numero di task che è == numero di window
-	int N_BL = (input_size - 1) / numBlocks + 1; // variabile dal dubbio significato (credo numero di batch) = ceil(input_size / numBlocks)
+	// int input_size = reads.size(); // prende il numero di task che è == numero di window
+	// int N_BL = (input_size - 1) / numBlocks + 1; // variabile dal dubbio significato (credo numero di batch) = ceil(input_size / numBlocks)
 	// cout << "N_BL = " << N_BL << endl;
-	int LAST_BATCH_SIZE = (input_size - 1) % numBlocks + 1; 
+	// int LAST_BATCH_SIZE = (input_size - 1) % numBlocks + 1; 
+
 	int *space_exceeded = (int*)malloc(sizeof(int));
 
-	vector<vector<string>> result_data(input_size);
+	// vector<vector<string>> result_data(input_size);
 
 
 	T.nseq_offsets = vector<int>(numBlocks);
@@ -207,87 +206,66 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 
 	cudaStreamSynchronize(0);
 
-	for(int b = 0; b < N_BL; b++){
+	int block_offset = 0;
+	int BLOCKS = numBlocks;
+	
+	init_kernel_block_parameters(reads, &T.sequences, T.nseq_offsets, T.seq_offsets, &T.tot_nseq, block_offset, numBlocks, batchSize); //block_offset=0
+	
+	//cout << "Start memcpy\n";
+	//cout << "Memcpy of " << T.seq_offsets[T.tot_nseq-1] << " bytes\n";
+	
+	cudaErrchk(cudaMemcpy(T.space_exceeded, space_exceeded, sizeof(int), cudaMemcpyHostToDevice));
+	cudaErrchk(cudaMemcpy(T.sequences_d, T.sequences, T.seq_offsets[T.tot_nseq-1], cudaMemcpyHostToDevice));
+	cudaErrchk(cudaMemcpy(T.seq_offsets_d, T.seq_offsets.data(), T.tot_nseq * sizeof(int), cudaMemcpyHostToDevice));
+	cudaErrchk(cudaMemcpy(T.nseq_offsets_d, T.nseq_offsets.data(), (unsigned long long)BLOCKS * sizeof(int), cudaMemcpyHostToDevice));
+	
+	//cout << "Compute edge offsets\n";
 
-		cout << "\n" << b << "th iteration" << endl;
+	// numThread == batchSize ??
+	// devo avere numReads / numBlocks threads
+	compute_edge_offsets<<<BLOCKS, batchSize>>>(T.seq_offsets_d, T.nseq_offsets_d);
+	
+	cudaStreamSynchronize(0);
+	
+	//cout << "Generate LPO\n";
 
-		// int block_offset = b * numBlocks;
-		// int BLOCKS;
-		// if(b == N_BL-1){
-		// 	BLOCKS = LAST_BATCH_SIZE;
-		// }else{
-		// 	BLOCKS = numBlocks;
-		// }
+	for(int i = 0; i < batchSize; i++){
+		generate_lpo<<<BLOCKS, SL+1>>>(T.sequences_d, T.seq_offsets_d, T.nseq_offsets_d, i);
+	}
 
-		int block_offset = b * numBlocks;
-		int BLOCKS;
-		if(b == N_BL-1){
-			BLOCKS = LAST_BATCH_SIZE;
-		}else{
-			BLOCKS = numBlocks;
+	printGraphStructure<<<1, 1>>>(numBlocks, batchSize);
+
+	cudaStreamSynchronize(0);
+
+	int i_seq_idx = 0;
+
+	for(int j_seq_idx = 1; j_seq_idx < batchSize; j_seq_idx++) {
+
+		if(j_seq_idx == batchSize-1 && lastBatch != 0){
+			BLOCKS = lastBatch;
 		}
 
-		init_kernel_block_parameters(reads, &T.sequences, T.nseq_offsets, T.seq_offsets, &T.tot_nseq, block_offset, numBlocks, batchSize); //block_offset=0
+		cout << "BLOCKS = " << BLOCKS << "   numBlocks = " << numBlocks << "   batchSize = " << batchSize <<
+				"   j_seq_idx = " << j_seq_idx << "   i_seq_idx = " << i_seq_idx << "   blocks = " << BLOCKS << endl;		
 		
-		//cout << "Start memcpy\n";
-		//cout << "Memcpy of " << T.seq_offsets[T.tot_nseq-1] << " bytes\n";
-		
-		cudaErrchk(cudaMemcpy(T.space_exceeded, space_exceeded, sizeof(int), cudaMemcpyHostToDevice));
-		cudaErrchk(cudaMemcpy(T.sequences_d, T.sequences, T.seq_offsets[T.tot_nseq-1], cudaMemcpyHostToDevice));
-		cudaErrchk(cudaMemcpy(T.seq_offsets_d, T.seq_offsets.data(), T.tot_nseq * sizeof(int), cudaMemcpyHostToDevice));
-		cudaErrchk(cudaMemcpy(T.nseq_offsets_d, T.nseq_offsets.data(), (unsigned long long)BLOCKS * sizeof(int), cudaMemcpyHostToDevice));
-		
-		//cout << "Compute edge offsets\n";
+		// printf("\n\nGRAPH CREATED --> BEGIN ALIGNMENT\n");
 
-		// numThread == batchSize ??
-		// devo avere numReads / numBlocks threads
-		compute_edge_offsets<<<BLOCKS, batchSize>>>(T.seq_offsets_d, T.nseq_offsets_d);
+		cudaStreamSynchronize(0);
+
+		// prossimi 2 kernel servono solo e soltanto per la dpMatrix ??
+				
+		compute_d_offsets<<<BLOCKS, 1>>>(i_seq_idx, j_seq_idx, T.nseq_offsets_d);
+		
+		cudaStreamSynchronize(0); 
+		
+		init_diagonals<<<BLOCKS, 1>>>(i_seq_idx, j_seq_idx, T.max_gapl, T.uses_global, T.nseq_offsets_d);
+		
+		//cout << "Alignment kernel call\n";
+		
+		sw_align<<<BLOCKS, SL+1>>>(i_seq_idx, j_seq_idx, T.max_gapl, T.uses_global, T.nseq_offsets_d);
 		
 		cudaStreamSynchronize(0);
-		
-		//cout << "Generate LPO\n";
-
-		for(int i = 0; i < batchSize; i++){
-			generate_lpo<<<BLOCKS, SL+1>>>(T.sequences_d, T.seq_offsets_d, T.nseq_offsets_d, i);
-		}
-
-		printGraphStructure<<<1,1>>>(numBlocks, batchSize);
-
-		int i_seq_idx = 0;
-
-		for(int j_seq_idx = 1; j_seq_idx < batchSize; j_seq_idx++) {
-
-			if(j_seq_idx == batchSize-1 && lastBatch != 0){
-				BLOCKS = lastBatch;
-			}else{
-				BLOCKS = numBlocks;
-			}
-
-			cout << "BLOCKS = " << BLOCKS << "   numBlocks = " << numBlocks << "   batchSize = " << batchSize << "   N_BL = " << N_BL <<
-			      "   j_seq_idx = " << j_seq_idx << "   i_seq_idx = " << i_seq_idx << "   blocks = " << BLOCKS << endl;		
-			
-			// printf("\n\nGRAPH CREATED --> BEGIN ALIGNMENT\n");
-
-			cudaStreamSynchronize(0);
-
-			// parametro 3 da sostituire !!!
-
-			// prossimi 2 kernel servono solo e soltanto per la dpMatrix ??
-					
-			compute_d_offsets<<<BLOCKS, 1>>>(i_seq_idx, j_seq_idx, T.nseq_offsets_d);
-			
-			cudaStreamSynchronize(0); 
-			
-			init_diagonals<<<BLOCKS,1>>>(i_seq_idx, j_seq_idx, T.max_gapl, T.uses_global, T.nseq_offsets_d);
-			
-			//cout << "Alignment kernel call\n";
-			
-			sw_align<<<BLOCKS, SL+1>>>(i_seq_idx, j_seq_idx, T.max_gapl, T.uses_global, T.nseq_offsets_d);
-			
-			cudaStreamSynchronize(0);
-		}
-
-    }
+	}
 }
 
 

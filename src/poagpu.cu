@@ -63,6 +63,21 @@ __device__ int g_space_exceeded = 0;
 
 
 __global__ void printGraphStructure(int numBlocks, int batchSize) {
+	printf("Len: ");
+	for(int i = 0; i < numBlocks; i++) {
+		printf("%d ", dyn_len_global[i]);
+	}
+	printf("\n");
+	printf("Letters: ");
+	for(int i = 0; i < MAXL * numBlocks; i++) {
+		printf("%u ", dyn_letters_global[i]);
+	}
+	printf("\n");
+	printf("Edge: ");
+	for(int i = 0; i < MAXL * numBlocks * EDGE_F; i++) {
+		printf("%hd ", dyn_edges_global[i]);
+	}
+	printf("\n");
 	printf("Edge Bounds: ");
 	for(int i = 0; i < (MAXL + 1) * numBlocks; i++) {
 		printf("%d ", dyn_edge_bounds_global[i]);
@@ -73,11 +88,11 @@ __global__ void printGraphStructure(int numBlocks, int batchSize) {
 		printf("%u ", dyn_end_nodes_global[i]);
 	}
 	printf("\n");
-	printf("Seq Ids: ");
-	for(int i = 0; i < MAXL * numBlocks * numBlocks; i++) {
-		printf("%u ", dyn_sequence_ids_global[i]);
-	}
-	printf("\n");
+	// printf("Seq Ids: ");
+	// for(int i = 0; i < MAXL * numBlocks * numBlocks; i++) {
+	// 	printf("%u ", dyn_sequence_ids_global[i]);
+	// }
+	// printf("\n");
 }
 
 
@@ -719,6 +734,7 @@ __global__ void generate_lpo(char* seq, int* seq_offsets, int* nseq_offsets, int
 		
 		unsigned char not_end = char_idx != seq_len - 1;
 		seq_x[char_idx] = bp_map(sequence[char_idx]);
+		// seq_x[char_idx] = sequence[char_idx];
 		end_list_x[char_idx] = not_end;
 		left_x[char_idx] = char_idx - 1;
 		for(int id = 0; id < WL; id++)
