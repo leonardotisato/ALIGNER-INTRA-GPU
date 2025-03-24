@@ -18,7 +18,7 @@
 #include <stdexcept>
 #include "include/poa.h"
 
-#define EDGE_F 3 // Heuristic mean degree for graphs
+#define EDGE_F 2 // Heuristic mean degree for graphs
 
 using namespace std;
 using namespace chrono;

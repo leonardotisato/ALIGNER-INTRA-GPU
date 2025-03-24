@@ -18,7 +18,7 @@
 #define SL 10
 #define MAXL 10
 
-#define EDGE_F 3 // Heuristic mean degree for graphs
+#define EDGE_F 2 // Heuristic mean degree for graphs
 
 
 using namespace std;
@@ -234,9 +234,9 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 	//cout << "Generate LPO\n";
 
 		// questo sarà da rimuovere
-		for(int i = 0; i < batchSize; i++){
-			generate_lpo<<<BLOCKS, SL+1>>>(T.sequences_d, T.seq_offsets_d, T.nseq_offsets_d, i);
-		}
+	for(int i = 0; i < batchSize; i++){
+		generate_lpo<<<BLOCKS, SL+1>>>(T.sequences_d, T.seq_offsets_d, T.nseq_offsets_d, i);
+	}
 
 	printGraphStructure<<<1, 1>>>(numBlocks, batchSize);
 
