@@ -22,9 +22,8 @@ __global__ void printGraphStructure(int numBlocks, int batchStructure);
 
 __global__ void print_lpo_offsets(int numBlocks, int batchStructure);
 
-__global__ void assign_device_memory(/*int* ledges_offs, unsigned char* lletters, Edge* ledges, int* ebounds, unsigned char* ennodes,*/ 
-                                    char* dletters, Edge* dedges, int* dedgebounds, /*unsigned char* d_end_nodes,*/
-                                    unsigned char* moves, short* diagonals_sc, int* d_offs, int* xy, int* yx, int* dynlg, const int num_blocks, int* roffs, char* reads);
+__global__ void assign_device_memory(char* dletters, Edge* dedges, int* dedgebounds, unsigned char* moves, short* diagonals_sc, 
+                                    int* d_offs, int* xy, int* yx, int* dynlg, const int num_blocks, int* roffs, char* reads);
 
  __global__ void init_diagonals(int i_seq_idx, int j_seq_idx, int uses_global, int* nseq_offsets);
 
@@ -37,6 +36,6 @@ __global__ void assign_device_memory(/*int* ledges_offs, unsigned char* lletters
 
  __global__ void compute_edge_offsets(int* seq_offsets, int* nseq_offsets);
 
- __global__ void generate_lpo(char* seq, int* seq_offsets, int* nseq_offsets, int seq_idx);
+ __global__ void generate_lpo(char* seq, int* seq_offsets, int* nseq_offsets);
 
  #endif

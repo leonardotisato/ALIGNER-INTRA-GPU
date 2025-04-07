@@ -35,18 +35,9 @@ struct TaskRefs{
 	int* seq_offsets_d;
 	int* res_size_d;
 
-	// char* reads_d;
-	
-	// int* lpo_edge_offsets_d;
-	// unsigned char* lpo_letters_d;
-	// Edge* lpo_edges_d;	
-	// int* edge_bounds_d;
-	// unsigned char* end_nodes_d;
-
 	char* dyn_letters_global_d;	
 	Edge* dyn_edges_global_d;
 	int* dyn_edge_bounds_global_d;
-	// unsigned char* dyn_end_nodes_global_d;
 
 	unsigned char* moves_global_d;	
 	short* diagonals_global_sc_d;
