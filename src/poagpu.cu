@@ -6,11 +6,11 @@
 
 #define USES_GLOBAL 1
 
-#define EDGE_F 3 // Heuristic mean degree for graphs
+#define EDGE_F 2 // Heuristic mean degree for graphs
 
 #define wrapSize 32
 #define FULL_MASK 0xffffffff
-#define D_BUFF_DEPTH 15
+// #define D_BUFF_DEPTH 15
 
 struct MaxCell {
 	int val;
@@ -19,25 +19,28 @@ struct MaxCell {
 };
 
 
-#define SL 32
+#define SL 10
 #define MAXL 10
 
 static const int NOT_ALIGNED = -1;
 
 __device__ int score(unsigned char i, unsigned char j) { return i == j ? MATCH : MISMATCH; }
 
-__device__ int* lpo_offsets;
-__device__ int* lpo_edge_offsets;
-__device__ unsigned char* lpo_letters;
-__device__ Edge* lpo_edges;
-__device__ int* edge_bounds;
-__device__ unsigned char* end_nodes;
+__device__ char* reads_d;
+__device__ int* read_offsets;
+
+// __device__ int* lpo_offsets;
+// __device__ int* lpo_edge_offsets;
+// __device__ unsigned char* lpo_letters;
+// __device__ Edge* lpo_edges;
+// __device__ int* edge_bounds;
+// __device__ unsigned char* end_nodes;
 
 __device__ int* dyn_len_global;
-__device__ unsigned char* dyn_letters_global;
+__device__ char* dyn_letters_global;
 __device__ Edge* dyn_edges_global;
 __device__ int* dyn_edge_bounds_global;
-__device__ unsigned char* dyn_end_nodes_global;
+// __device__ unsigned char* dyn_end_nodes_global;
 
 __device__ unsigned char* moves_x_global;
 __device__ unsigned char* moves_y_global;
@@ -48,24 +51,6 @@ __device__ int* x_to_ys;
 __device__ int* y_to_xs;
 __device__ int g_space_exceeded = 0;
 
-
-
-__device__ inline char un_map(unsigned char c) {
-
-	if (c == 0) {
-		return 'A';
-	}
-	if (c == 4) {
-		return 'C';
-	}
-	if (c == 7) {
-		return 'G';
-	}
-	if (c == 16) {
-		return 'T';
-	}
-	return 'Z';
-}
 
 __global__ void printGraphStructure(int numBlocks, int batchSize) {
 	printf("Len: ");
@@ -80,7 +65,7 @@ __global__ void printGraphStructure(int numBlocks, int batchSize) {
 	// printf("\n");
 	printf("Letters: ");
 	for(int i = 0; i < MAXL * numBlocks; i++) {
-		printf("%u ", dyn_letters_global[i]);
+		printf("%c ", dyn_letters_global[i]);
 	}
 	printf("\n");
 	printf("Edge: ");
@@ -93,31 +78,29 @@ __global__ void printGraphStructure(int numBlocks, int batchSize) {
 		printf("%d ", dyn_edge_bounds_global[i]);
 	}
 	printf("\n");
-	printf("End Nodes: ");
-	for(int i = 0; i < MAXL * numBlocks; i++) {
-		printf("%u ", dyn_end_nodes_global[i]);
-	}
-	printf("\n");
 }
 
 
-__global__ void assign_device_memory(int* ledges_offs, unsigned char* lletters, Edge* ledges, int* ebounds, unsigned char* ennodes, 
-									unsigned char* dletters, Edge* dedges, int* dedgebounds, unsigned char* d_end_nodes, 
-									unsigned char* moves, short* diagonals_sc, int* d_offs, int* xy, int* yx, int* dynlg, const int num_blocks){
+__global__ void assign_device_memory(/*int* ledges_offs, unsigned char* lletters, Edge* ledges, int* ebounds, unsigned char* ennodes,*/ 
+									char* dletters, Edge* dedges, int* dedgebounds, /*unsigned char* d_end_nodes,*/ 
+									unsigned char* moves, short* diagonals_sc, int* d_offs, int* xy, int* yx, int* dynlg, const int num_blocks, int* roffs, char* reads){
 	
 
 	// assegno puntatori allocati sull'host che puntano a memoria allocata sul device a puntatori allocati sul device
+	
+	reads_d = reads;
+	read_offsets = roffs;
 
-	lpo_edge_offsets = ledges_offs;
-	lpo_letters = lletters;
-	lpo_edges = ledges;
-	edge_bounds = ebounds;
-	end_nodes = ennodes;
+	// lpo_edge_offsets = ledges_offs;
+	// lpo_letters = lletters;
+	// lpo_edges = ledges;
+	// edge_bounds = ebounds;
+	// end_nodes = ennodes;
 	
 	dyn_letters_global = dletters;
 	dyn_edges_global = dedges;
 	dyn_edge_bounds_global = dedgebounds;
-	dyn_end_nodes_global = d_end_nodes;
+	// dyn_end_nodes_global = d_end_nodes;
 	
 	moves_x_global = moves;
 	moves_y_global = moves + (unsigned long)(MAXL+1)*(SL+1) * num_blocks;
@@ -138,8 +121,8 @@ __global__ void init_diagonals(int i_seq_idx, int j_seq_idx, int uses_global, in
 	int nseq;
 	int block_offset;
 	int myId = blockIdx.x;
-	int y_seq_offs;
-	int y_edge_offs;
+	// int y_seq_offs;
+	// int y_edge_offs;
 	int len_y;
 	int len_x;
 	
@@ -155,15 +138,15 @@ __global__ void init_diagonals(int i_seq_idx, int j_seq_idx, int uses_global, in
 
 	if(j_seq_idx < nseq){
 	
-		y_seq_offs = lpo_offsets[block_offset + j_seq_idx-1];
-		y_edge_offs = lpo_edge_offsets[block_offset + j_seq_idx-1];
-		len_y = lpo_offsets[block_offset + j_seq_idx] - lpo_offsets[block_offset + j_seq_idx-1];
+		// y_seq_offs = read_offsets[block_offset + j_seq_idx-1];
+		// y_edge_offs = read_offsets[block_offset + j_seq_idx-1];
+		len_y = read_offsets[block_offset + j_seq_idx] - read_offsets[block_offset + j_seq_idx-1];
 	
-		int global_seq_idx_y = block_offset + j_seq_idx;
+		// int global_seq_idx_y = block_offset + j_seq_idx;
 		Edge* left_x = dyn_edges_global + MAXL * EDGE_F * myId; 
-		Edge* left_y = lpo_edges + y_edge_offs;
+		// Edge* left_y = lpo_edges + y_edge_offs;
 		int* lx_start = dyn_edge_bounds_global + (MAXL+1) * myId;
-		int* ly_start = edge_bounds + y_seq_offs + global_seq_idx_y;
+		// int* ly_start = edge_bounds + y_seq_offs + global_seq_idx_y;
 
 		short* diagonals_sc = diagonals_sc_global + (MAXL+1)*(SL+1) * myId;
 		int* d_offsets = d_offsets_global + (MAXL+SL+1) * myId;
@@ -202,19 +185,52 @@ __global__ void init_diagonals(int i_seq_idx, int j_seq_idx, int uses_global, in
 			short &curr_cell_sc = diagonals_sc[d_offsets[i]];
 			curr_cell_sc = min_score;
 
-			int k = ly_start[i - 1];
-			for (int y_count = 1; k < ly_start[i]; k++, y_count++) {
 
-				Edge yl = left_y[k];
-				short prev_sc = diagonals_sc[d_offsets[yl + 1]];
-		
+
+
+			// int pred = (i > 1) ? i - 2 : -1;
+			// short prev_sc = (pred >= 0) ? diagonals_sc[d_offsets[pred + 1]] : -999999;
+
+			// try_score = prev_sc - GAP;
+
+			// if (try_score > curr_cell_sc) {
+			// 	curr_cell_sc = try_score;
+			// }
+
+
+
+			int prev = i - 2;
+			// if (prev >= 0) {
+				short prev_sc = diagonals_sc[d_offsets[prev + 1]];
 				try_score = prev_sc - GAP;
-
 				if (try_score > curr_cell_sc) {
 					curr_cell_sc = try_score;
-				}
+			//	}
 			}
+
+
+
+
+
+			// int k = ly_start[i - 1];
+			// // printf("\n");
+			// for (int y_count = 1; k < ly_start[i]; k++, y_count++) {
+			// 	// if(blockIdx.x == 0) {
+			// 	// 	printf(" a ");
+			// 	// }
+
+			// 	Edge yl = left_y[k];
+			// 	// short prev_sc = diagonals_sc[d_offsets[yl + 1]];
+			// 	short prev_sc = diagonals_sc[d_offsets[(lpo_edges + y_edge_offs)[k] + 1]];
+		
+			// 	try_score = prev_sc - GAP;
+
+			// 	if (try_score > curr_cell_sc) {
+			// 		curr_cell_sc = try_score;
+			// 	}
+			// }
 		}
+		// printf("\n\n");
 	}
 }
 
@@ -318,7 +334,7 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 	__shared__ int nseq;
 	__shared__ int block_offset;
 	__shared__ int y_seq_offs;
-	__shared__ int y_edge_offs;
+	// __shared__ int y_edge_offs;
 	__shared__ int len_y;
 	__shared__ int len_x;
 
@@ -336,11 +352,11 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 	
 	if(j_seq_idx < nseq){
 		
-		y_seq_offs = lpo_offsets[block_offset + j_seq_idx-1];
-		y_edge_offs = lpo_edge_offsets[block_offset + j_seq_idx-1];
-		len_y = lpo_offsets[block_offset + j_seq_idx] - lpo_offsets[block_offset + j_seq_idx-1];
+		y_seq_offs = read_offsets[block_offset + j_seq_idx-1];
+		// y_edge_offs = read_offsets[block_offset + j_seq_idx-1];
+		len_y = read_offsets[block_offset + j_seq_idx] - read_offsets[block_offset + j_seq_idx-1];
 		
-		int global_seq_idx_y = block_offset + j_seq_idx;
+		// int global_seq_idx_y = block_offset + j_seq_idx;
 		
 		int c = threadIdx.x;
 
@@ -349,9 +365,9 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 		// 	printf("yseqoff %d\t yedgeoff %d\t leny %d\n", y_seq_offs, y_edge_offs, len_y);
 		// }
 
-		__shared__ unsigned char* seq_x;
-		__shared__ unsigned char* end_list_x;
-		__shared__ unsigned char* end_list_y;
+		__shared__ char* seq_x;
+		// __shared__ unsigned char* end_list_x;
+		// __shared__ unsigned char* end_list_y;
 		__shared__ int* x_to_y;
 		__shared__ int* y_to_x;
 		__shared__ short* diagonals_sc;
@@ -362,8 +378,8 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 
 		if(c==0){
 			seq_x = dyn_letters_global + MAXL * myId;
-			end_list_x = dyn_end_nodes_global + MAXL * myId;
-			end_list_y = end_nodes + y_seq_offs;
+			// end_list_x = dyn_end_nodes_global + MAXL * myId;
+			// end_list_y = end_nodes + y_seq_offs;
 			x_to_y= x_to_ys + MAXL * myId;
 			y_to_x = y_to_xs + MAXL * myId;
 			diagonals_sc = diagonals_sc_global + (MAXL+1)*(SL+1) * myId;
@@ -390,7 +406,8 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 		}while(offs < len_x+1);
 
 		if(c < len_y+1){
-			ly_start[c] = (edge_bounds + y_seq_offs + global_seq_idx_y)[c];
+			// ly_start[c] = (edge_bounds + y_seq_offs + global_seq_idx_y)[c];
+			ly_start[c] = c;
 		}
 		__syncthreads();
 		int x_left_dim = lx_start[len_x];
@@ -407,13 +424,14 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 		offs = 0;
 		do{
 			if(offs + c < y_left_dim){
-				left_y[offs+c] = (lpo_edges + y_edge_offs)[offs+c];
+				// left_y[offs+c] = (lpo_edges + y_edge_offs)[offs+c];
+				left_y[offs+c] = c - 1;
 			}
 			offs +=SL+1;
 		}while(offs < y_left_dim);
 		
 		if(c < len_y){
-			seq_y[c] = (lpo_letters + y_seq_offs)[c];
+			seq_y[c] = (reads_d + y_seq_offs)[c];
 		}
 
 		offs = 0;
@@ -470,8 +488,9 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 				int j = c + (((n - len_y < 0)-1) & (n - len_y));
 				int i = n - j;
 
-				int possible_end_cell = uses_global == 0 ||
-					(end_list_x[j - 1] == 0 && end_list_y[i - 1] == 0); 
+				// int possible_end_cell = uses_global == 0 ||
+				// 	(end_list_x[j - 1] == 0 && end_list_y[i - 1] == 0); 
+				int possible_end_cell = 1;
 
 
 	// ly_start: Indici che delimitano i nodi della sequenza Y per ogni riga.
@@ -479,10 +498,11 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 	// try_score: Punteggio candidato ottenuto considerando un predecessore.
 	// gap_penalty_y: Funzione che calcola il costo aggiuntivo per un gap in Y.
 				int k = ly_start[i-1];
-				for (int y_count = 1; k < ly_start[i]; k++, y_count++) {
+				int y_count = 1;
+				// for (int y_count = 1; k < ly_start[i]; k++, y_count++) {
 
 					int i_prev = left_y[k] + 1;
-					int k = ((0 > i_prev + j - len_y)-1) & (i_prev + j - len_y);
+					k = ((0 > i_prev + j - len_y)-1) & (i_prev + j - len_y);
 					int n_prev = i_prev + j;
 					int c_prev = j - k;
 
@@ -494,7 +514,7 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 						insert_y_y = y_count;
 					}
 
-				}
+				// }
 
 
 	// analogo
@@ -517,12 +537,13 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 					}
 
 					k = ly_start[i-1];
-					for (int y_count = 1; k < ly_start[i]; k++, y_count++) {
+					// for (int y_count = 1; k < ly_start[i]; k++, y_count++) {
 
 						int i_prev = left_y[k] + 1;
-						int k = ((0 > i_prev + j_prev - len_y)-1) & (i_prev + j_prev - len_y);
-						int n_prev = i_prev + j_prev;
-						int c_prev = j_prev - k;
+						// int i_prev = (i > 1) ? i - 1 : -1;
+						k = ((0 > i_prev + j_prev - len_y)-1) & (i_prev + j_prev - len_y);
+						n_prev = i_prev + j_prev;
+						c_prev = j_prev - k;
 
 						try_score = (diagonals_sc + d_offsets[n_prev])[c_prev];	
 
@@ -531,7 +552,7 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 							match_x = x_count;
 							match_y = y_count;
 						}
-					}
+					// }
 				}
 
 				match_score += score(seq_x[j - 1], seq_y[i - 1]); 
@@ -566,26 +587,28 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 			__syncthreads();
 
 			// aaggiunto da me: solo un thread stampa la diagonale corrente
-			// if (threadIdx.x == 0 && blockIdx.x == 0) {
-			// 	// printf("Printing DP Matrix: \n");
-			// 	int end = (n<(len_x + len_y)) ? d_offsets[n + 1] : (len_x+1) *(len_y+1);
-			// 	// printf("Diagonal %d, (%d %d %d):", n, d_offsets[n], d_offsets[n + 1], end);
-			// 	printf("Diagonal %d:", n);
-			// 	for (int d = d_offsets[n]; d < end; d++) {
-			// 		// printf("(%d %d)", diagonals_sc[d], d);
-			// 		printf("(%d)", diagonals_sc[d]);
-			// 	}
-			// 	printf("\n");
-			// }
-			// __syncthreads();
+			if (threadIdx.x == 0 && blockIdx.x == 0) {
+				// printf("Printing DP Matrix: \n");
+				int end = (n<(len_x + len_y)) ? d_offsets[n + 1] : (len_x+1) * (len_y+1);
+				// printf("Diagonal %d, (%d %d %d):", n, d_offsets[n], d_offsets[n + 1], end);
+				printf("Diagonal %d:", n);
+				for (int d = d_offsets[n]; d < end; d++) {
+					// printf("(%d %d)", diagonals_sc[d], d);
+					printf("(%d)", diagonals_sc[d]);
+				}
+				printf("\n");
+			}
+			__syncthreads();
 		}
 
-		max = blockReduceMax<(SL+1) / wrapSize>(max);
+		max = blockReduceMax<(((SL-1) / wrapSize) + 1)>(max);
 		
 		if(c==0){
 			trace_back_lpo_alignment(len_x, len_y, moves_x, moves_y, left_x, left_y, lx_start, ly_start, 
 									max.x, max.y, x_to_y, y_to_x, d_offsets);
 		}
+
+		// printf("Score: %d\n", max.val);
 
 	}//thread execution if-end
 	
@@ -600,7 +623,7 @@ __global__ void compute_edge_offsets(int* seq_offsets, int* nseq_offsets){
 	int block_offset;
 	int n_seq;
 	
-	lpo_offsets = seq_offsets; 
+	read_offsets = seq_offsets; 
 	
 	if(myId == 0){
 		block_offset = 0;
@@ -612,26 +635,26 @@ __global__ void compute_edge_offsets(int* seq_offsets, int* nseq_offsets){
 	}
 	
 	if(seq_idx < n_seq){	
-		lpo_edge_offsets[block_offset + seq_idx] = seq_offsets[block_offset + seq_idx];
+		read_offsets[block_offset + seq_idx] = seq_offsets[block_offset + seq_idx];
 	}
 }
 
-__device__ inline unsigned char bp_map(char c) {
 
-	if (c == 'A') {
-		return 0;
-	}
-	if (c == 'C') {
-		return 4;
-	}
-	if (c == 'G') {
-		return 7;
-	}
-	if (c == 'T') {
-		return 16;
-	}
-	return 8;
-}
+// __global__ void print_lpo_offsets(int numBlock, int batchSize) {
+// 	printf("lpo offsets: ");
+// 	for(int i = 0; i < numBlock * batchSize; i++) {
+// 		printf("%d ", lpo_offsets[i]);
+// 	}
+// 	printf("\n");
+// 	printf("lpo edge offsets: ");
+// 	for(int i = 0; i < numBlock * batchSize; i++) {
+// 		printf("%d ", lpo_edge_offsets[i]);
+// 	}
+// 	printf("\n");
+// }
+
+
+
 
 __global__ void generate_lpo(char* seq, int* seq_offsets, int* nseq_offsets, int seq_idx) {
 
@@ -643,7 +666,7 @@ __global__ void generate_lpo(char* seq, int* seq_offsets, int* nseq_offsets, int
 	int char_idx = myTId;
 	int seq_len;
 	int offset;
-	int edge_offset;
+	// int edge_offset;
 	int block_offset;
 	int n_seq;
 	
@@ -658,45 +681,52 @@ __global__ void generate_lpo(char* seq, int* seq_offsets, int* nseq_offsets, int
 	
 	if(block_offset + seq_idx == 0){ 
 		offset = 0;                             
-		edge_offset = 0;
+		// edge_offset = 0;
 		seq_len = seq_offsets[block_offset + seq_idx];
 	}else{
 		seq_len = seq_offsets[block_offset + seq_idx] - seq_offsets[block_offset + seq_idx-1];
 		offset = seq_offsets[block_offset + seq_idx-1];
-		edge_offset = lpo_edge_offsets[block_offset + seq_idx-1];
+		// edge_offset = read_offsets[block_offset + seq_idx-1];
 	}
 
+	// printf(" (%d %d) ", offset, edge_offset);
+
 	char* sequence = seq + offset; 
-	unsigned char* seq_x;
+	char* seq_x;
 	Edge* left_x;
-	unsigned char* end_list_x;
+	// unsigned char* end_list_x;
 	int* start_x;
 
 	if(seq_idx == 0){
 		dyn_len_global[myId] = seq_len;
 		seq_x = dyn_letters_global + MAXL * myId;
 		left_x = dyn_edges_global + MAXL * EDGE_F * myId;
-		end_list_x = dyn_end_nodes_global + MAXL * myId;
+		// end_list_x = dyn_end_nodes_global + MAXL * myId;
 		start_x = dyn_edge_bounds_global + (MAXL+1) * myId;
 	}else{
-		seq_x = lpo_letters + offset;
-		left_x = lpo_edges + edge_offset;
-		end_list_x = end_nodes + offset;
-		start_x = edge_bounds + offset + seq_idx + block_offset;
+		// seq_x = reads_d + offset;
+		// left_x = lpo_edges + edge_offset;
+		// end_list_x = end_nodes + offset;
+		// start_x = edge_bounds + offset + seq_idx + block_offset;
 	}
 	
 	if (char_idx < seq_len && seq_idx < n_seq) {
 		
-		unsigned char not_end = char_idx != seq_len - 1;
-		seq_x[char_idx] = bp_map(sequence[char_idx]);
+		// unsigned char not_end = char_idx != seq_len - 1;
+		// seq_x[char_idx] = bp_map(sequence[char_idx]);
 		// seq_x[char_idx] = sequence[char_idx];
-		end_list_x[char_idx] = not_end;
-		left_x[char_idx] = char_idx - 1;
+		// end_list_x[char_idx] = not_end;
+		if(seq_idx == 0){
+			left_x[char_idx] = char_idx - 1;
+			start_x[char_idx] = char_idx;
+			seq_x[char_idx] = sequence[char_idx];
+		}
+		// left_x[char_idx] = char_idx - 1;
 		
-		start_x[char_idx] = char_idx;
+		// start_x[char_idx] = char_idx;
 	}
 	if(char_idx == seq_len && seq_idx < n_seq) {
-		start_x[char_idx] = char_idx;
+		if(seq_idx == 0) start_x[char_idx] = char_idx;
 	}
 }
 
@@ -722,7 +752,7 @@ __global__ void compute_d_offsets(int i_seq_idx, int j_seq_idx, int* nseq_offset
 	}
 	if(j_seq_idx < nseq){
 		
-		len_y = lpo_offsets[block_offset + j_seq_idx] - lpo_offsets[block_offset + j_seq_idx-1];
+		len_y = read_offsets[block_offset + j_seq_idx] - read_offsets[block_offset + j_seq_idx-1];
 
 		int* d_offsets = d_offsets_global + (MAXL + SL+1) * myId;  
 
