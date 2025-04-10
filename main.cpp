@@ -1,9 +1,12 @@
-// Genera grafo "complesso" (ora genera una sequenza) -> leggilo da file
-// Gestisci meglio generazione reads e collocazione nelle window -> leggile da file
-// Capisci meglio come avvengono gli allineamenti: differenza tra window e batch, etc...
-// Modifica TUTTO in modo da allocare solo lo spazio necessario
-
-// Traceback si o no? Linear gap penalty o affine gap penalty?
+// TODO: 
+// - convertitore CSR to CSR di peve (o direttamente GFA to CSR di Peve)
+// - ottimizza copia di dati da memoria host a memoria device
+// - salva rilìsultato punteggio di allineamento
+// - salva cigar
+// - gestione MAXL e SL
+// - fixare bug dovuto all'incremento di MAXL
+// - testa grafo "complesso"
+// - forse: rimuovi EDGE_F
 
 #include <cuda_runtime.h>
 #include <chrono>
