@@ -47,6 +47,14 @@ struct TaskRefs{
 	int* y_to_xs_d;
 	
 	int* dyn_len_global_d;	
+
+	char* g_letters;
+	Edge* g_edges;
+	int* g_offsets;
+
+	size_t num_letters = 0;
+    size_t num_edges = 0;
+    size_t num_offsets = 0;
 };
 
 } //end poa_gpu_utils
