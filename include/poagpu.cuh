@@ -195,10 +195,10 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 
 	for (int b = 0; b < numBlocks; ++b) {
 
-		cudaMemcpy(T.dyn_letters_global_d + MAXL * b, T.g_letters, MAXL * sizeof(char), cudaMemcpyHostToDevice);
-		cudaMemcpy(T.dyn_edges_global_d + MAXL * EDGE_F * b, T.g_edges, MAXL * EDGE_F * sizeof(Edge), cudaMemcpyHostToDevice);
-		cudaMemcpy(T.dyn_edge_bounds_global_d + (MAXL+1) * b, T.g_offsets, (MAXL+1) * sizeof(int), cudaMemcpyHostToDevice);
-		cudaMemcpy(T.dyn_len_global_d + b, &T.num_letters, sizeof(int), cudaMemcpyHostToDevice);
+		cudaErrchk(cudaMemcpy(T.dyn_letters_global_d + MAXL * b, T.g_letters, T.num_letters * sizeof(char), cudaMemcpyHostToDevice));
+		cudaErrchk(cudaMemcpy(T.dyn_edges_global_d + MAXL * EDGE_F * b, T.g_edges, T.num_edges * sizeof(Edge), cudaMemcpyHostToDevice));
+		cudaErrchk(cudaMemcpy(T.dyn_edge_bounds_global_d + (MAXL+1) * b, T.g_offsets, T.num_offsets * sizeof(int), cudaMemcpyHostToDevice));
+		cudaErrchk(cudaMemcpy(T.dyn_len_global_d + b, &T.num_letters, sizeof(int), cudaMemcpyHostToDevice));
 		// letters_offset += T.num_letters;
 		// edges_offset   += T.num_edges;
 		// edge_bounds_offset += T.num_offsets;
