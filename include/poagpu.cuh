@@ -217,23 +217,6 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 	cudaErrchk(cudaMemcpy(T.seq_offsets_d, T.seq_offsets.data(), T.tot_nseq * sizeof(int), cudaMemcpyHostToDevice));
 	cudaErrchk(cudaMemcpy(T.nseq_offsets_d, T.nseq_offsets.data(), (unsigned long long)BLOCKS * sizeof(int), cudaMemcpyHostToDevice));
 
-	cudaStreamSynchronize(0);
-
-	// size_t letters_offset = 0;
-	// size_t edges_offset = 0;
-	// size_t edge_bounds_offset = 0;
-
-	for (int b = 0; b < numBlocks; ++b) {
-
-		cudaErrchk(cudaMemcpy(T.dyn_letters_global_d + MAXL * b, T.g_letters, T.num_letters * sizeof(char), cudaMemcpyHostToDevice));
-		cudaErrchk(cudaMemcpy(T.dyn_edges_global_d + MAXL * EDGE_F * b, T.g_edges, T.num_edges * sizeof(Edge), cudaMemcpyHostToDevice));
-		cudaErrchk(cudaMemcpy(T.dyn_edge_bounds_global_d + (MAXL+1) * b, T.g_offsets, T.num_offsets * sizeof(int), cudaMemcpyHostToDevice));
-		cudaErrchk(cudaMemcpy(T.dyn_len_global_d + b, &T.num_letters, sizeof(int), cudaMemcpyHostToDevice));
-		// letters_offset += T.num_letters;
-		// edges_offset   += T.num_edges;
-		// edge_bounds_offset += T.num_offsets;
-	}
-
 	// compute_edge_offsets<<<BLOCKS, batchSize>>>(T.seq_offsets_d, T.nseq_offsets_d);
 	
 	cudaStreamSynchronize(0);
@@ -249,8 +232,7 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 	// generate_lpo<<<BLOCKS, SL+1>>>(T.sequences_d, T.seq_offsets_d, T.nseq_offsets_d);
 
 	// printGraphStructure<<<1, 1>>>(numBlocks, batchSize);
-
-	cudaStreamSynchronize(0);
+	// cudaStreamSynchronize(0);
 
 	int i_seq_idx = 0;
 
