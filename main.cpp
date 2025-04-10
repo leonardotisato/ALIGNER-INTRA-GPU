@@ -30,15 +30,17 @@ int main(int argc, char* argv[]) {
 
 	bool read_from_file = false;
 	char* path_ref;	
+	char* graph_path;
 	
-	if(argc < 3){
+	if(argc < 4){
 		cout << "Invalid arguments. Call this program as: ./poa maxSeqSize maxWindowSize sampleSize [read_file.pow]" << endl;
 		return 0;
 	}
 
-	if(argc == 4){
+	if(argc == 5){
 		read_from_file = true;
 		path_ref = argv[3];
+		graph_path = argv[4];
 	}
 	
 	string max_seq_size = argv[1];
@@ -79,7 +81,7 @@ int main(int argc, char* argv[]) {
 	//SIMPLE GPU EXECUTION SINGLE KERNEL
 	int c = 0;
 
-	get_bmean_batch_result_gpu(reads, c, NUM_BLOCKS, batchSize);
+	get_bmean_batch_result_gpu(reads, c, NUM_BLOCKS, batchSize, graph_path);
 
 	
 	return 0;

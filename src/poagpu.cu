@@ -44,6 +44,7 @@ __device__ int g_space_exceeded = 0;
 
 
 __global__ void printGraphStructure(int numBlocks, int batchSize) {
+	printf("\nPrinting graph: \n");
 	printf("Len: ");
 	for(int i = 0; i < numBlocks; i++) {
 		printf("%d ", dyn_len_global[i]);
