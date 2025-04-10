@@ -168,7 +168,7 @@ void read_graph_input(std::string filename, poa_gpu_utils::TaskRefs &T) {
 
 
 
-void get_bmean_batch_result_gpu(vector<vector<string>> reads, int &c, const int numBlocks, int batchSize, char* graph_path){
+void get_bmean_batch_result_gpu(vector<vector<string>> reads, int &c, const int numBlocks, int batchSize, graph_h* g){
 
 	poa_gpu_utils::TaskRefs T;		// struct con dentro TUUUUUTTO
 	// size_t size = reads.size();
@@ -181,7 +181,7 @@ void get_bmean_batch_result_gpu(vector<vector<string>> reads, int &c, const int 
 	auto start = NOW;
 
 	gpu_POA_alloc(T, numBlocks, batchSize);
-	gpu_POA(reads, T, numBlocks, batchSize);
+	gpu_POA(reads, T, numBlocks, batchSize, g);
 	gpu_POA_free(T);
 
 	auto end = NOW;

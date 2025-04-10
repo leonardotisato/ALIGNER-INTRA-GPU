@@ -157,7 +157,7 @@ void init_kernel_block_parameters(vector<vector<string>> &reads, char** sequence
 }
 
 
-void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, int batchSize) {
+void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, int batchSize, graph_h* g) {
 
 	int numReads = 0;
 	for(int i = 0; i < reads.size(); i++) {
@@ -169,6 +169,36 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 	int *space_exceeded = (int*)malloc(sizeof(int));
 
 	T.nseq_offsets = vector<int>(numBlocks);
+
+	// memcpy reference graph
+	for (int b = 0; b < numBlocks; b++) {
+		size_t offset_letters = b * MAXL;
+		size_t offset_edges = b * MAXL * EDGE_F;
+		size_t offset_bounds = b * (MAXL + 1);
+		size_t offset_len = b;
+	
+		cudaErrchk(cudaMemcpy(T.dyn_letters_global_d + offset_letters,
+							  g->dyn_letters_global,
+							  MAXL * sizeof(unsigned char),
+							  cudaMemcpyHostToDevice));
+	
+		cudaErrchk(cudaMemcpy(T.dyn_edges_global_d + offset_edges,
+							  g->dyn_edges_global,
+							  g->edgesNumber * sizeof(Edge),
+							  cudaMemcpyHostToDevice));
+	
+		cudaErrchk(cudaMemcpy(T.dyn_edge_bounds_global_d + offset_bounds,
+							  g->dyn_edge_bounds_global,
+							  (MAXL + 1) * sizeof(int),
+							  cudaMemcpyHostToDevice));
+
+		cudaErrchk(cudaMemcpy(T.dyn_len_global_d + offset_len,
+								&g->dyn_len_global,
+								sizeof(int),
+							  	cudaMemcpyHostToDevice));
+	}
+
+	// T.dyn_len_global_d = g->dyn_len_global;
 
 	// assegna ai puntatori allocati sul device i puntatori di T
 	assign_device_memory<<<1, 1>>>(T.dyn_letters_global_d, T.dyn_edges_global_d, T.dyn_edge_bounds_global_d, 
@@ -212,9 +242,13 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 	// 	generate_lpo<<<BLOCKS, SL+1>>>(T.sequences_d, T.seq_offsets_d, T.nseq_offsets_d, i);
 	// }
 
+	printGraphStructure<<<1, 1>>>(numBlocks, batchSize);
+
+	cudaStreamSynchronize(0);
+
 	// generate_lpo<<<BLOCKS, SL+1>>>(T.sequences_d, T.seq_offsets_d, T.nseq_offsets_d);
 
-	printGraphStructure<<<1, 1>>>(numBlocks, batchSize);
+	// printGraphStructure<<<1, 1>>>(numBlocks, batchSize);
 
 	cudaStreamSynchronize(0);
 

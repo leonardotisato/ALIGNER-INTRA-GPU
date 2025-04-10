@@ -20,6 +20,7 @@
 #include <numeric>
 #include <stdexcept>
 #include "include/poa.h"
+#include "include/gfaToGraph.h"
 
 #define EDGE_F 2 // Heuristic mean degree for graphs
 
@@ -32,18 +33,18 @@ using namespace chrono;
 int main(int argc, char* argv[]) {
 
 	bool read_from_file = false;
-	char* path_ref;	
-	char* graph_path;
+	char* path_ref;
+	char* path_graph;
 	
-	if(argc < 4){
-		cout << "Invalid arguments. Call this program as: ./poa maxSeqSize maxWindowSize sampleSize [read_file.pow]" << endl;
+	if(argc < 5){
+		cout << "Invalid arguments. Call this program as: ./poa seqSize numBlocks [read_file.pow] [graph_file.gfa]" << endl;
 		return 0;
 	}
 
 	if(argc == 5){
 		read_from_file = true;
 		path_ref = argv[3];
-		graph_path = argv[4];
+		path_graph = argv[4];
 	}
 	
 	string max_seq_size = argv[1];
@@ -79,13 +80,22 @@ int main(int argc, char* argv[]) {
 		numReads += reads[i].size();
 	}
 
+	graph_h g;
+
+	string filepath(path_graph);
+	cout << "*** ATTEMPTING TO READ GRAPH FROM " << filepath << " ***" << endl;
+	convertGFAtoGraph(&g, filepath);
+
 	int batchSize = (numReads - 1) / NUM_BLOCKS + 1;
 
 	//SIMPLE GPU EXECUTION SINGLE KERNEL
 	int c = 0;
 
-	get_bmean_batch_result_gpu(reads, c, NUM_BLOCKS, batchSize, graph_path);
+	get_bmean_batch_result_gpu(reads, c, NUM_BLOCKS, batchSize, &g);
 
+	delete[] g.dyn_letters_global;
+	delete[] g.dyn_edges_global;
+	delete[] g.dyn_edge_bounds_global;
 	
 	return 0;
 }
