@@ -5,6 +5,7 @@
 #include <vector>
 #include <random>
 #include "task.h"
+#include "gfaToGraph.h"
 
 typedef short Edge;
 
@@ -12,7 +13,7 @@ using namespace std;
 
 void read_batch(vector<vector<string>> &batch, size_t size, string filename);
 
-void get_bmean_batch_result_gpu(vector<vector<string>> windows, int &c, const int numBlocks, int batchSize);
+void get_bmean_batch_result_gpu(vector<vector<string>> windows, int &c, const int numBlocks, int batchSize, graph_h* g);
 
 void print_reads(vector<vector<string>> reads);
 

@@ -12,7 +12,7 @@ TARGET = poagpu
 all: $(TARGET)
 
 $(TARGET): $(SRC)
-	$(NVCC) src/poagpu.cu -x cu src/utils.cpp main.cpp -o $(TARGET) $(CXXFLAGS)
+	$(NVCC) src/poagpu.cu -x cu src/utils.cpp src/gfaToGraph.cpp main.cpp -o $(TARGET) $(CXXFLAGS)
 
 # Clean the build
 clean:
