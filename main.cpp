@@ -1,12 +1,23 @@
 // TODO: 
-// - convertitore CSR to CSR di peve (o direttamente GFA to CSR di Peve)
 // - ottimizza copia di dati da memoria host a memoria device
 // - salva rilìsultato punteggio di allineamento
 // - salva cigar
 // - gestione MAXL e SL
+// - forse: rimuovi EDGE_F
+
+// DONE (maybe some tests still to do):
+// - convertitore CSR to CSR di peve (o direttamente GFA to CSR di Peve)
 // - fixare bug dovuto all'incremento di MAXL
 // - testa grafo "complesso"
-// - forse: rimuovi EDGE_F
+
+// DOMANDE: 
+// - grafo può avere più starting nodes (non necessariamente verso il 2^ nodo)
+
+
+// TIMING (faremo 3 misurazioni diverse: ora con le define, poi con le define tolte, poi con gil stream per caricare in memoria):
+// - misura tempi di tutte le diverse fasi
+// - grafo da 1.000 caratteri circa
+// - circa 1.000 reads lunghe 1000 circa
 
 #include <cuda_runtime.h>
 #include <chrono>

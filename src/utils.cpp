@@ -95,10 +95,18 @@ void get_bmean_batch_result_gpu(vector<vector<string>> reads, int &c, const int 
 	auto start = NOW;
 
 	gpu_POA_alloc(T, numBlocks, batchSize);
+    auto alloc = NOW;
+    c = duration_cast<microseconds>(alloc - start).count();
+	std::cout << "Alloc duration: " << c << " microseconds" << std::endl;
+
 	gpu_POA(reads, T, numBlocks, batchSize, g);
+    auto alignment = NOW;
+    c = duration_cast<microseconds>(alignment - start).count();
+    std::cout << "Total alignment duration: " << c << " microseconds" << std::endl;
+
 	gpu_POA_free(T);
 
 	auto end = NOW;
 	c = duration_cast<microseconds>(end - start).count();
-	std::cout << "Duration: " << c << " microseconds" << std::endl;
+	std::cout << "Total duration: " << c << " microseconds" << std::endl;
 }

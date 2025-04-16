@@ -21,6 +21,9 @@ struct MaxCell {
 #define SL 10
 #define MAXL 10
 
+// #define SL 1000
+// #define MAXL 1000
+
 static const int NOT_ALIGNED = -1;
 
 __device__ int score(unsigned char i, unsigned char j) { return i == j ? MATCH : MISMATCH; }

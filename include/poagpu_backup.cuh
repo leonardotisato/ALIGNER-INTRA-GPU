@@ -47,8 +47,8 @@ inline void gpu_POA_alloc(TaskRefs &T, const int numBlocks, int batchSize){
 	// dimensione memoria allocata dipendente dal numero di blocchi ??
 	// spazi allocati dipendenti da batchSize ??
 
-	T.result = (char*)malloc(batchSize * MAXL * numBlocks);
-	T.res_size = (int*)malloc(numBlocks * sizeof(int));
+	// T.result = (char*)malloc(batchSize * MAXL * numBlocks);
+	// T.res_size = (int*)malloc(numBlocks * sizeof(int));
 
 	cudaErrchk(cudaMalloc(&T.space_exceeded, sizeof(int)));
 
@@ -57,26 +57,26 @@ inline void gpu_POA_alloc(TaskRefs &T, const int numBlocks, int batchSize){
 	cudaErrchk(cudaMalloc(&T.sequences_d, (unsigned long long)SL * batchSize * numBlocks)); 
 	cudaErrchk(cudaMalloc(&T.seq_offsets_d, (unsigned long long)numBlocks * batchSize * sizeof(int))); 
 	cudaErrchk(cudaMalloc(&T.nseq_offsets_d, (unsigned long long)numBlocks * sizeof(int))); 
-	cudaErrchk(cudaMalloc(&T.result_d, (unsigned long long)MAXL * batchSize * numBlocks)); 
-	cudaErrchk(cudaMalloc(&T.res_size_d, (unsigned long long)numBlocks * sizeof(int)));
+	// cudaErrchk(cudaMalloc(&T.result_d, (unsigned long long)MAXL * batchSize * numBlocks)); 
+	// cudaErrchk(cudaMalloc(&T.res_size_d, (unsigned long long)numBlocks * sizeof(int)));
 
-	cudaErrchk(cudaMalloc(&T.lpo_edge_offsets_d, (unsigned long long)batchSize * numBlocks * sizeof(int)));
-	cudaErrchk(cudaMalloc(&T.lpo_letters_d, (unsigned long long)batchSize * SL * numBlocks));
-	cudaErrchk(cudaMalloc(&T.lpo_edges_d, (unsigned long long)batchSize * SL * EDGE_F * numBlocks * sizeof(Edge)));
-	cudaErrchk(cudaMalloc(&T.edge_bounds_d, (unsigned long long)batchSize * (SL+1) * numBlocks * sizeof(int)));	
-	cudaErrchk(cudaMalloc(&T.end_nodes_d, (unsigned long long)batchSize * SL * numBlocks));
-	cudaErrchk(cudaMalloc(&T.sequence_ids_d, (unsigned long long)batchSize * batchSize * SL * numBlocks));
+	// cudaErrchk(cudaMalloc(&T.lpo_edge_offsets_d, (unsigned long long)batchSize * numBlocks * sizeof(int)));
+	// cudaErrchk(cudaMalloc(&T.lpo_letters_d, (unsigned long long)batchSize * SL * numBlocks));
+	// cudaErrchk(cudaMalloc(&T.lpo_edges_d, (unsigned long long)batchSize * SL * EDGE_F * numBlocks * sizeof(Edge)));
+	// cudaErrchk(cudaMalloc(&T.edge_bounds_d, (unsigned long long)batchSize * (SL+1) * numBlocks * sizeof(int)));	
+	// cudaErrchk(cudaMalloc(&T.end_nodes_d, (unsigned long long)batchSize * SL * numBlocks));
+	// cudaErrchk(cudaMalloc(&T.sequence_ids_d, (unsigned long long)batchSize * batchSize * SL * numBlocks));
 
 	cudaErrchk(cudaMalloc(&T.dyn_letters_global_d, (unsigned long long)MAXL * numBlocks));
 	cudaErrchk(cudaMalloc(&T.dyn_edges_global_d, (unsigned long long)MAXL * EDGE_F * numBlocks * sizeof(Edge)));
 	cudaErrchk(cudaMalloc(&T.dyn_edge_bounds_global_d, (unsigned long long)(MAXL+1) * numBlocks * sizeof(int)));
-	cudaErrchk(cudaMalloc(&T.dyn_end_nodes_global_d, (unsigned long long)MAXL * numBlocks));
-	cudaErrchk(cudaMalloc(&T.dyn_sequence_ids_global_d, (unsigned long long)batchSize * MAXL * numBlocks));
+	// cudaErrchk(cudaMalloc(&T.dyn_end_nodes_global_d, (unsigned long long)MAXL * numBlocks));
+	// cudaErrchk(cudaMalloc(&T.dyn_sequence_ids_global_d, (unsigned long long)batchSize * MAXL * numBlocks));
 
 	cudaErrchk(cudaMalloc(&T.moves_global_d, (unsigned long long)2 * (MAXL+1) * (SL+1) * numBlocks * sizeof(unsigned char)));
 	cudaErrchk(cudaMalloc(&T.diagonals_global_sc_d, (unsigned long long)(MAXL+1)*(SL+1) * numBlocks * sizeof(short)));
-	cudaErrchk(cudaMalloc(&T.diagonals_global_gx_d, (unsigned long long)(MAXL+1)*(SL+1) * numBlocks * sizeof(short)));
-	cudaErrchk(cudaMalloc(&T.diagonals_global_gy_d, (unsigned long long)(MAXL+1)*(SL+1) * numBlocks * sizeof(short)));
+	// cudaErrchk(cudaMalloc(&T.diagonals_global_gx_d, (unsigned long long)(MAXL+1)*(SL+1) * numBlocks * sizeof(short)));
+	// cudaErrchk(cudaMalloc(&T.diagonals_global_gy_d, (unsigned long long)(MAXL+1)*(SL+1) * numBlocks * sizeof(short)));
 	cudaErrchk(cudaMalloc(&T.d_offsets_global_d, (unsigned long long)(MAXL + SL+1) * numBlocks * sizeof(int)));
 	cudaErrchk(cudaMalloc(&T.x_to_ys_d, (unsigned long long)MAXL * numBlocks * sizeof(int)));
 	cudaErrchk(cudaMalloc(&T.y_to_xs_d, (unsigned long long)MAXL * numBlocks * sizeof(int)));
@@ -87,8 +87,8 @@ inline void gpu_POA_free(TaskRefs &T){
 
 	cudaDeviceReset();
 	
-	free(T.result);
-	free(T.res_size);
+	// free(T.result);
+	// free(T.res_size);
 
 }
 

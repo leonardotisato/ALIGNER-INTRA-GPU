@@ -26,14 +26,14 @@ struct TaskRefs{
 	vector<int> seq_offsets;
 
 	int* space_exceeded;
-	char* result;//[WL * MAXL * BDIM];
-	int* res_size;//[BDIM];
+	// char* result;//[WL * MAXL * BDIM];
+	// int* res_size;//[BDIM];
 	
 	int* nseq_offsets_d;
 	char* sequences_d;
-	char* result_d;
+	// char* result_d;
 	int* seq_offsets_d;
-	int* res_size_d;
+	// int* res_size_d;
 
 	char* dyn_letters_global_d;	
 	Edge* dyn_edges_global_d;
