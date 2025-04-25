@@ -15,6 +15,7 @@ L	seq3	+	seq4	+	*
 L	seq4	+	seq5	+	*
 L	seq5	+	seq6	+	*
 L	seq6	+	seq7	+	*
+L	seq6	+	seq8	+	*
 L	seq7	+	seq8	+	*
 L	seq8	+	seq9	+	*
 L	seq9	+	seq10	+	*

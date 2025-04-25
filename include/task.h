@@ -46,7 +46,8 @@ struct TaskRefs{
 	int* x_to_ys_d;
 	int* y_to_xs_d;
 	
-	int* dyn_len_global_d;	
+	int* dyn_len_global_d;
+	int* dyn_nE_global_d;
 };
 
 } //end poa_gpu_utils

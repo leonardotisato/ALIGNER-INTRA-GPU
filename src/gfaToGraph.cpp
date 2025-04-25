@@ -163,7 +163,7 @@ void convertGFAtoGraph(graph_h* g, const string& filename){
 	// int* inOffset = new int[vertexNumber + 1];
 
 	g->dyn_edge_bounds_global = new int[vertexNumber + 1];
-	g->dyn_edges_global = new Edge[edgesNumber + 1];
+	g->dyn_edges_global = new Edge[edgesNumber]; // TODO: commit this change
 	g->dyn_letters_global = new unsigned char[vertexNumber];
 	
 	g->dyn_len_global = vertexNumber;
