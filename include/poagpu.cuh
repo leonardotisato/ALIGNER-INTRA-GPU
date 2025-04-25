@@ -43,8 +43,8 @@ inline void gpu_POA_alloc(TaskRefs &T, const int numBlocks, int batchSize, int n
 
 	// alloco memoria sul device, la memoria è puntata da puntatori che risiedono sulla memoria dell'host
 
-	T.result = (char*)malloc(batchSize * nV * numBlocks);
-	T.res_size = (int*)malloc(numBlocks * sizeof(int));
+	// T.result = (char*)malloc(batchSize * nV * numBlocks);
+	// T.res_size = (int*)malloc(numBlocks * sizeof(int));
 
 	cudaErrchk(cudaMalloc(&T.space_exceeded, sizeof(int)));
 
@@ -54,8 +54,8 @@ inline void gpu_POA_alloc(TaskRefs &T, const int numBlocks, int batchSize, int n
 	cudaErrchk(cudaMalloc(&T.sequences_d, (unsigned long long)SL * batchSize * numBlocks)); 
 	cudaErrchk(cudaMalloc(&T.seq_offsets_d, (unsigned long long)numBlocks * batchSize * sizeof(int))); 
 	cudaErrchk(cudaMalloc(&T.nseq_offsets_d, (unsigned long long)numBlocks * sizeof(int))); 
-	cudaErrchk(cudaMalloc(&T.result_d, (unsigned long long)nV * batchSize * numBlocks)); 
-	cudaErrchk(cudaMalloc(&T.res_size_d, (unsigned long long)numBlocks * sizeof(int)));
+	// cudaErrchk(cudaMalloc(&T.result_d, (unsigned long long)nV * batchSize * numBlocks)); 
+	// cudaErrchk(cudaMalloc(&T.res_size_d, (unsigned long long)numBlocks * sizeof(int)));
 
 	cudaErrchk(cudaMalloc(&T.dyn_letters_global_d, (unsigned long long)nV * numBlocks));
 	cudaErrchk(cudaMalloc(&T.dyn_edges_global_d, (unsigned long long)nE * numBlocks * sizeof(Edge)));
@@ -161,6 +161,8 @@ void init_kernel_block_parameters(vector<vector<string>> &reads, char** sequence
 
 
 void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, int batchSize, graph_h* g) {
+
+	auto start = NOW;
 
 	int nV = g->dyn_len_global;
 	int nE = g->edgesNumber;
