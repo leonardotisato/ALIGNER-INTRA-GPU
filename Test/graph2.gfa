@@ -1,7 +1,0 @@
-H	VN:Z:1.0
-S	seq1	ATG
-S	seq2	C
-S	seq3	CAT
-L	seq1	+	seq3	+	*
-L	seq2	+	seq3	+	*
-L	seq1	+	seq2	+	*

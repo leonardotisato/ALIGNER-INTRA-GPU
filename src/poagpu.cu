@@ -91,8 +91,12 @@ __global__ void assign_device_memory( char* dletters, Edge* dedges, int* dedgebo
 	
 
 	// assegno puntatori allocati sull'host che puntano a memoria allocata sul device a puntatori allocati sul device
-	
-	int offset = dynlg[blockIdx.x];
+	// Doppi commenti: modifiche suggerite
+	// // int offset = dynlg[blockIdx.x];
+	int offset = 0;
+	for(int i = 0; i < num_blocks; i++) {
+		offset += dynlg[i];
+	}
 
 	reads_d = reads;
 	read_offsets = roffs;
@@ -102,7 +106,8 @@ __global__ void assign_device_memory( char* dletters, Edge* dedges, int* dedgebo
 	dyn_edge_bounds_global = dedgebounds;
 
 	moves_x_global = moves;
-	moves_y_global = moves + (unsigned long)(offset+1)*(SL+1) * num_blocks; // offset needs to change with different graph length
+	// // moves_y_global = moves + (unsigned long)(offset+1)*(SL+1) * num_blocks; // offset needs to change with different graph length
+	moves_y_global = moves + (unsigned long)(offset + num_blocks) * (SL + 1); 
 	diagonals_sc_global = diagonals_sc;
 	
 	d_offsets_global = d_offs;
