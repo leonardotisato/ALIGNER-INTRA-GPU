@@ -33,7 +33,7 @@
 #include "include/poa.h"
 #include "include/gfaToGraph.h"
 
-#define EDGE_F 2 // Heuristic mean degree for graphs
+
 
 using namespace std;
 using namespace chrono;
@@ -43,48 +43,31 @@ using namespace chrono;
 
 int main(int argc, char* argv[]) {
 
-	bool read_from_file = false;
 	char* path_ref;
 	char* path_graph;
 	
-	if(argc < 5){
-		cout << "Invalid arguments. Call this program as: ./poa seqSize numBlocks [read_file.pow] [graph_file.gfa]" << endl;
+	if(argc < 4){
+		cout << "Invalid arguments. Call this program as: ./poagpu numBlocks read_file.fa graph_file.gfa" << endl;
 		return 0;
 	}
-
-	if(argc == 5){
-		read_from_file = true;
-		path_ref = argv[3];
-		path_graph = argv[4];
-	}
 	
-	string max_seq_size = argv[1];
-	const int MAX_SEQ_LEN = check_input_int(max_seq_size);		
-	
-	string max_w_size = argv[2];
+	string max_w_size = argv[1];
 	const int NUM_BLOCKS = check_input_int(max_w_size);		
 
-	if(MAX_SEQ_LEN < 0){
-		cout << "Invalid max sequence length provided" << endl;
-		return 0;
-	}
 	if(NUM_BLOCKS < 0){
-		cout << "Invalid max window size provided" << endl;
+		cout << "Invalid numBlocks size provided" << endl;
 		return 0;
 	}
+
+	path_ref = argv[2];
+	path_graph = argv[3];
 
 	vector<vector<string>> reads;
 	
-	if(read_from_file){
-		string filepath(path_ref);
-		cout << "*** ATTEMPTING TO READ FROM " << filepath << endl;
-		read_batch(reads, NUM_BLOCKS, filepath);
-		
-	}else{
-		cerr << "Invalid file path provided";
-	}
-
-	print_reads(reads);
+	string filepath_r(path_ref);
+	read_batch(reads, NUM_BLOCKS, filepath_r);
+	
+	// print_reads(reads);
 
 	int numReads = 0;
 	for(int i = 0; i < reads.size(); i++) {
@@ -92,14 +75,16 @@ int main(int argc, char* argv[]) {
 	}
 
 	graph_h g;
+	string filepath_g(path_graph);
+	auto start = NOW;
+	convertGFAtoGraph(&g, filepath_g);
+	auto convert = NOW;
 
-	string filepath(path_graph);
-	cout << "*** ATTEMPTING TO READ GRAPH FROM " << filepath << " ***" << endl;
-	convertGFAtoGraph(&g, filepath);
+    double t = duration_cast<microseconds>(convert - start).count();
+    std::cout << "Conversion duration: " << t << " microseconds" << std::endl;
 
 	int batchSize = (numReads - 1) / NUM_BLOCKS + 1;
 
-	//SIMPLE GPU EXECUTION SINGLE KERNEL
 	int c = 0;
 
 	get_bmean_batch_result_gpu(reads, c, NUM_BLOCKS, batchSize, &g);
