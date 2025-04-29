@@ -5,7 +5,7 @@ import subprocess
 def print_help():
     print("""
 Uso corretto:
-    python run_poagpu.py <numBlocks> <num_vertici> <num_reads> <len_reads> [--example]
+    python scripts/run_poagpu.py <numBlocks> <num_vertici> <num_reads> <len_reads> [--example]
 
 Dove:
     <num_vertici>           = Numero di vertici (presente nel nome del file grafo).
