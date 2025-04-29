@@ -86,9 +86,16 @@ void convertGFAtoGraph(graph_h* g, const string& filename){
 
     // first read to count the number of vertices and edges and store the sequences
     while(getline(file, line)){
+
+		// Skip blank or whitespace-only lines
+		if (line.find_first_not_of(" \t\r\n") == std::string::npos) continue;
 		istringstream iss(line);
+
         char type;
-		iss >> type;
+		// iss >> type;
+
+		// Attempt to read a non-whitespace character; skip if none
+		if (!(iss >> type)) continue;
 
         if(type == 'S'){
             std::string nodeId, sequence;
@@ -123,9 +130,15 @@ void convertGFAtoGraph(graph_h* g, const string& filename){
 	edgesNumber++;
 
 	while(getline(file, line)){
+
+		// Skip blank or whitespace-only lines. Prefer to put it here in order to avoid skipping of blank lines in the middle of the file
+		if (line.find_first_not_of(" \t\r\n") == std::string::npos) continue;
 		istringstream iss(line);
 		char type;
-		iss >> type;
+		// iss >> type;
+
+		// Attempt to read a non-whitespace character; skip if none
+		if (!(iss >> type)) continue;
 
 		// inserting the edges to the adjacency list for the single vertex in the sequence
 		if (type == 'S') {
@@ -152,6 +165,7 @@ void convertGFAtoGraph(graph_h* g, const string& filename){
             int toIndex = nodeIdToIndex[toNode];
 
 			adjacencyList[seqs[toIndex].start].push_back(seqs[fromIndex].end);
+			cout << "Adjacency list: " << seqs[toIndex].start << " -> " << seqs[fromIndex].end << endl;
 			edgesNumber++;
 		}
 	}

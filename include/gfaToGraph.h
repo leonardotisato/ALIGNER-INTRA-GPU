@@ -7,9 +7,6 @@ using namespace std;
 
 typedef short Edge; 
 
-// questa struct contiene le strutture dati che compongono il grafo
-// bisogna inserire le strutture dati utilizzate in questo tool!!! (bisogna capire bene quali sono)
-// CSR structure
 struct graph{
 	int* dyn_edge_bounds_global;
 	Edge* dyn_edges_global;
