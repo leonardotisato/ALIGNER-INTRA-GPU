@@ -15,7 +15,7 @@
 
 #define DEBUG 1
 
-#define SL 10
+#define SL 120
 #define MAXL 10
 
 #define EDGE_F 1 // Heuristic mean degree for graphs
