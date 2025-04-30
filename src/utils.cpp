@@ -94,8 +94,8 @@ void get_bmean_batch_result_gpu(vector<vector<string>> reads, int &c, const int 
 
 	auto start = NOW;
 
-    // size_t seqLen = reads[0][0].size();
-    size_t seqLen = 120;
+    size_t seqLen = reads[0][0].size();
+    // size_t seqLen = 120;
 
 	gpu_POA_alloc(T, numBlocks, batchSize, g->dyn_len_global, g->edgesNumber, seqLen);
 	gpu_POA(reads, T, numBlocks, batchSize, g, seqLen);
