@@ -1,5 +1,7 @@
 #include "../include/poa.h"
 // #include "assert.h"
+#include <cuda_runtime.h>
+#include <iostream>
 
 
 #define MATCH 1
@@ -51,6 +53,35 @@ __device__ int g_space_exceeded = 0;
 
 // __constant__ int seqLen;
 
+void checkCudaDeviceLimits(int seqLen, int shared_size) {
+    int device;
+    cudaDeviceProp prop;
+
+    cudaGetDevice(&device);
+    cudaGetDeviceProperties(&prop, device);
+
+	std::cout << "\nCUDA device properties:\n";
+    std::cout << "Checking CUDA device launch parameters...\n";
+    std::cout << "Device name: " << prop.name << "\n";
+    std::cout << "Max threads per block: " << prop.maxThreadsPerBlock << "\n";
+    std::cout << "Max shared memory per block (bytes): " << prop.sharedMemPerBlock << "\n";
+
+    if (seqLen + 1 > prop.maxThreadsPerBlock) {
+        std::cerr << "ERROR: seqLen + 1 (" << (seqLen + 1)
+                  << ") exceeds maxThreadsPerBlock (" << prop.maxThreadsPerBlock << ")\n";
+    } else {
+        std::cout << "OK: Thread count per block is within limit.\n";
+    }
+
+    if (shared_size > prop.sharedMemPerBlock) {
+        std::cerr << "ERROR: Requested shared memory (" << shared_size
+                  << " bytes) exceeds device limit (" << prop.sharedMemPerBlock << " bytes)\n";
+    } else {
+        std::cout << "OK: Shared memory size is within limit.\n";
+    }
+
+    std::cout << "Check complete.\n";
+}
 
 __global__ void printGraphStructure(int numBlocks, int batchSize) {
 	// we lunch this kernel as <<1, 1>> so blockIdx.x is always the first

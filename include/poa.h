@@ -19,6 +19,8 @@ void print_reads(vector<vector<string>> reads);
 
 int check_input_int(string &arg);
 
+void checkCudaDeviceLimits(int seqLen, int shared_size);
+
 __global__ void printGraphStructure(int numBlocks, int batchStructure);
 
 __global__ void print_lpo_offsets(int numBlocks, int batchStructure);

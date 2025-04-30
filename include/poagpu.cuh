@@ -278,6 +278,7 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 		
 		init_diagonals<<<BLOCKS, 1>>>(i_seq_idx, j_seq_idx, T.uses_global, T.nseq_offsets_d);
 
+		checkCudaDeviceLimits(seqLen, shared_size);
 		sw_align<<<BLOCKS, seqLen+1, shared_size>>>(i_seq_idx, j_seq_idx, T.uses_global, T.nseq_offsets_d);
 		
 		// sw_align<<<BLOCKS, SL+1>>>(i_seq_idx, j_seq_idx, T.uses_global, T.nseq_offsets_d);
