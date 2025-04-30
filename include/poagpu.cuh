@@ -36,10 +36,8 @@ inline void gpuAssert(cudaError_t code, const char* file, int line, bool abort =
 	}
 }
 
-// extern __constant__ int d_nV;
-// extern __constant__ int d_nE;
 
-inline void gpu_POA_alloc(TaskRefs &T, const int numBlocks, int batchSize, int nV, int nE){
+inline void gpu_POA_alloc(TaskRefs &T, const int numBlocks, int batchSize, int nV, int nE, size_t seqLen){
 
 	// alloco memoria sul device, la memoria è puntata da puntatori che risiedono sulla memoria dell'host
 
@@ -51,7 +49,7 @@ inline void gpu_POA_alloc(TaskRefs &T, const int numBlocks, int batchSize, int n
 	cudaErrchk(cudaMalloc(&T.dyn_len_global_d, (unsigned long long)numBlocks * sizeof(int)));
 	cudaErrchk(cudaMalloc(&T.dyn_nE_global_d, (unsigned long long)numBlocks * sizeof(int)));
 
-	cudaErrchk(cudaMalloc(&T.sequences_d, (unsigned long long)SL * batchSize * numBlocks)); 
+	cudaErrchk(cudaMalloc(&T.sequences_d, (unsigned long long)seqLen * batchSize * numBlocks)); 
 	cudaErrchk(cudaMalloc(&T.seq_offsets_d, (unsigned long long)numBlocks * batchSize * sizeof(int))); 
 	cudaErrchk(cudaMalloc(&T.nseq_offsets_d, (unsigned long long)numBlocks * sizeof(int))); 
 	// cudaErrchk(cudaMalloc(&T.result_d, (unsigned long long)nV * batchSize * numBlocks)); 
@@ -61,10 +59,10 @@ inline void gpu_POA_alloc(TaskRefs &T, const int numBlocks, int batchSize, int n
 	cudaErrchk(cudaMalloc(&T.dyn_edges_global_d, (unsigned long long)nE * numBlocks * sizeof(Edge)));
 	cudaErrchk(cudaMalloc(&T.dyn_edge_bounds_global_d, (unsigned long long)(nV+1) * numBlocks * sizeof(int)));
 	
-	cudaErrchk(cudaMalloc(&T.moves_global_d, (unsigned long long)2 * (nV+1) * (SL+1) * numBlocks * sizeof(unsigned char)));
-	cudaErrchk(cudaMalloc(&T.diagonals_global_sc_d, (unsigned long long)(nV+1)*(SL+1) * numBlocks * sizeof(short)));
+	cudaErrchk(cudaMalloc(&T.moves_global_d, (unsigned long long)2 * (nV+1) * (seqLen+1) * numBlocks * sizeof(unsigned char)));
+	cudaErrchk(cudaMalloc(&T.diagonals_global_sc_d, (unsigned long long)(nV+1)*(seqLen+1) * numBlocks * sizeof(short)));
 
-	cudaErrchk(cudaMalloc(&T.d_offsets_global_d, (unsigned long long)(nV + SL+1) * numBlocks * sizeof(int)));
+	cudaErrchk(cudaMalloc(&T.d_offsets_global_d, (unsigned long long)(nV + seqLen+1) * numBlocks * sizeof(int)));
 	cudaErrchk(cudaMalloc(&T.x_to_ys_d, (unsigned long long)nV * numBlocks * sizeof(int)));
 	cudaErrchk(cudaMalloc(&T.y_to_xs_d, (unsigned long long)nV * numBlocks * sizeof(int)));
 }
@@ -160,7 +158,7 @@ void init_kernel_block_parameters(vector<vector<string>> &reads, char** sequence
 }
 
 
-void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, int batchSize, graph_h* g) {
+void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, int batchSize, graph_h* g, size_t seqLen) {
 
 	auto start = NOW;
 
@@ -216,7 +214,7 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 	// assegna ai puntatori allocati sul device i puntatori di T
 	assign_device_memory<<<1, 1>>>(T.dyn_letters_global_d, T.dyn_edges_global_d, T.dyn_edge_bounds_global_d, 
 				       T.moves_global_d, T.diagonals_global_sc_d, T.d_offsets_global_d, T.x_to_ys_d, T.y_to_xs_d, 
-					   T.dyn_len_global_d, numBlocks, T.seq_offsets_d, T.sequences_d, T.dyn_nE_global_d);
+					   T.dyn_len_global_d, numBlocks, T.seq_offsets_d, T.sequences_d, T.dyn_nE_global_d, seqLen);
 
 	cudaStreamSynchronize(0);
 
@@ -255,8 +253,8 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 	// cudaStreamSynchronize(0);
 
 	// FIXME: Se nV, nE variano per blocco, fai questo calcolo per ogni blocco (es. in un loop se necessario).
-	int shared_size = (nV+1 + SL+1 + nV+SL+1)*sizeof(int) + 
-		nE*sizeof(Edge) + SL*sizeof(Edge) + SL*sizeof(unsigned char);
+	int shared_size = (nV+1 + seqLen+1 + nV+seqLen+1)*sizeof(int) + 
+		nE*sizeof(Edge) + seqLen*sizeof(Edge) + seqLen*sizeof(unsigned char);
 
 
 	int i_seq_idx = 0;
@@ -280,7 +278,7 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 		
 		init_diagonals<<<BLOCKS, 1>>>(i_seq_idx, j_seq_idx, T.uses_global, T.nseq_offsets_d);
 
-		sw_align<<<BLOCKS, SL+1, shared_size>>>(i_seq_idx, j_seq_idx, T.uses_global, T.nseq_offsets_d);
+		sw_align<<<BLOCKS, seqLen+1, shared_size>>>(i_seq_idx, j_seq_idx, T.uses_global, T.nseq_offsets_d);
 		
 		// sw_align<<<BLOCKS, SL+1>>>(i_seq_idx, j_seq_idx, T.uses_global, T.nseq_offsets_d);
 		

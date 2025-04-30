@@ -20,7 +20,7 @@ struct MaxCell {
 };
 
 #define SL 120
-#define MAXL 10
+#define MAXL 100
 
 // #define SL 1000
 // #define MAXL 1000
@@ -31,6 +31,8 @@ __device__ int score(unsigned char i, unsigned char j) { return i == j ? MATCH :
 
 __device__ char* reads_d;
 __device__ int* read_offsets;
+
+__device__ int seqLen; // sarebbe meglio dichiararla come __constant__ ma non funziona!!!
 
 __device__ int* dyn_len_global;
 __device__ int* dyn_nE_global;
@@ -47,14 +49,16 @@ __device__ int* x_to_ys;
 __device__ int* y_to_xs;
 __device__ int g_space_exceeded = 0;
 
-// __constant__ int d_nV;
-// __constant__ int d_nE;
+// __constant__ int seqLen;
+
 
 __global__ void printGraphStructure(int numBlocks, int batchSize) {
 	// we lunch this kernel as <<1, 1>> so blockIdx.x is always the first
 	int myId = blockIdx.x;
 	int nV = dyn_len_global[myId];
 	int nE = dyn_nE_global[myId];
+
+	printf("\n--- seqLen: %d ---\n", seqLen);
 
 	printf("\nPrinting graph: \n");
 	// printf("d_params = {nV: %d, nE: %d}\n", nV, nE);
@@ -87,7 +91,7 @@ __global__ void printGraphStructure(int numBlocks, int batchSize) {
 
 
 __global__ void assign_device_memory( char* dletters, Edge* dedges, int* dedgebounds, unsigned char* moves, short* diagonals_sc, 
-									int* d_offs, int* xy, int* yx, int* dynlg, const int num_blocks, int* roffs, char* reads, int* dynne){
+									int* d_offs, int* xy, int* yx, int* dynlg, const int num_blocks, int* roffs, char* reads, int* dynne, int seqlen){
 	
 
 	// assegno puntatori allocati sull'host che puntano a memoria allocata sul device a puntatori allocati sul device
@@ -105,9 +109,11 @@ __global__ void assign_device_memory( char* dletters, Edge* dedges, int* dedgebo
 	dyn_edges_global = dedges;
 	dyn_edge_bounds_global = dedgebounds;
 
+	seqLen = seqlen;
+
 	moves_x_global = moves;
 	// // moves_y_global = moves + (unsigned long)(offset+1)*(SL+1) * num_blocks; // offset needs to change with different graph length
-	moves_y_global = moves + (unsigned long)(offset + num_blocks) * (SL + 1); 
+	moves_y_global = moves + (unsigned long)(offset + num_blocks) * (seqLen + 1); 
 	diagonals_sc_global = diagonals_sc;
 	
 	d_offsets_global = d_offs;
@@ -116,12 +122,18 @@ __global__ void assign_device_memory( char* dletters, Edge* dedges, int* dedgebo
 
 	dyn_len_global = dynlg;
 	dyn_nE_global = dynne;
+
 }
 
 
 __global__ void init_diagonals(int i_seq_idx, int j_seq_idx, int uses_global, int* nseq_offsets){
 	
 	if(g_space_exceeded) return;
+
+	__shared__ int local_seqLen;
+	if (threadIdx.x == 0)
+		local_seqLen = seqLen;
+	__syncthreads();
 
 	int nseq;
 	int block_offset;
@@ -150,8 +162,8 @@ __global__ void init_diagonals(int i_seq_idx, int j_seq_idx, int uses_global, in
 		Edge* left_x = dyn_edges_global + nE * myId; 
 		int* lx_start = dyn_edge_bounds_global + (nV+1) * myId;
 
-		short* diagonals_sc = diagonals_sc_global + (nV+1)*(SL+1) * myId;
-		int* d_offsets = d_offsets_global + (nV+SL+1) * myId;
+		short* diagonals_sc = diagonals_sc_global + (nV+1)*(local_seqLen+1) * myId;
+		int* d_offsets = d_offsets_global + (nV+local_seqLen+1) * myId;
 	
 		int min_d = len_x < len_y ? len_x : len_y;
 
@@ -287,6 +299,26 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 	return cell;
 }
 
+__inline__ __device__ MaxCell blockReduceMax_dynamic(MaxCell cell, int num_wraps) {
+    extern __shared__ MaxCell shared_max[];
+    int lane = threadIdx.x % warpSize;
+    int wid = threadIdx.x / warpSize;
+
+    cell = wrapReduceMax(cell);
+    if (lane == 0) {
+        shared_max[wid] = cell;
+    }
+    __syncthreads();
+
+    MaxCell zero_cell = { -999999, -1, -1 };
+    cell = (threadIdx.x < blockDim.x / warpSize) ? shared_max[lane] : zero_cell;
+
+    if (wid == 0) {
+        cell = wrapReduceMax(cell);
+    }
+    return cell;
+}
+
  __global__ void sw_align(int i_seq_idx, int j_seq_idx, int uses_global, int* nseq_offsets) {
 	
 	if(g_space_exceeded) return;
@@ -303,6 +335,11 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 	__shared__ int y_seq_offs;
 	__shared__ int len_y;
 	__shared__ int len_x;
+
+	__shared__ int local_seqLen;
+	if (threadIdx.x == 0)
+		local_seqLen = seqLen;
+	__syncthreads();
 
 
 	if(myId == 0){
@@ -334,9 +371,9 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 			seq_x = dyn_letters_global + nV * myId;
 			x_to_y= x_to_ys + nV * myId;
 			y_to_x = y_to_xs + nV * myId;
-			diagonals_sc = diagonals_sc_global + (nV+1)*(SL+1) * myId;
-			moves_x = moves_x_global + (nV+1)*(SL+1) * myId;
-			moves_y = moves_y_global + (nV+1)*(SL+1) * myId;
+			diagonals_sc = diagonals_sc_global + (nV+1)*(local_seqLen+1) * myId;
+			moves_x = moves_x_global + (nV+1)*(local_seqLen+1) * myId;
+			moves_y = moves_y_global + (nV+1)*(local_seqLen+1) * myId;
 		}
 		__syncthreads();
 
@@ -351,17 +388,17 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 
 		int* lx_start = (int*)shared_mem;
 		int* ly_start = (int*)&lx_start[nV + 1];
-		int* d_offsets = (int*)&ly_start[SL + 1];
-		Edge* left_x = (Edge*)&d_offsets[nV + SL + 1];
+		int* d_offsets = (int*)&ly_start[local_seqLen + 1];
+		Edge* left_x = (Edge*)&d_offsets[nV + local_seqLen + 1];
 		Edge* left_y = (Edge*)&left_x[nE];	// dovrebbe essere nE ma non funziona
-		unsigned char* seq_y = (unsigned char*)&left_y[SL];
+		unsigned char* seq_y = (unsigned char*)&left_y[local_seqLen];
 		
 		int offs = 0;
 		do{
 			if(offs + c < len_x+1){
 				lx_start[offs + c] = (dyn_edge_bounds_global + (nV+1) * myId)[offs+c];
 			}	
-			offs += SL+1;
+			offs += local_seqLen+1;
 		}while(offs < len_x+1);
 
 		if(c < len_y+1){
@@ -377,7 +414,7 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 			if(offs + c < x_left_dim){
 				left_x[offs+c] = (dyn_edges_global + nE * myId)[offs+c];
 			}
-			offs +=SL+1; // nE + 1 ???
+			offs +=local_seqLen+1; // nE + 1 ???
 		}while(offs < x_left_dim);
 
 		offs = 0;
@@ -385,7 +422,7 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 			if(offs + c < y_left_dim){
 				left_y[offs+c] = c - 1;
 			}
-			offs +=SL+1; // modified!
+			offs +=local_seqLen+1; // modified!
 		}while(offs < y_left_dim);
 		
 		if(c < len_y){
@@ -395,9 +432,9 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 		offs = 0;
 		do{
 			if(offs + c < len_x+len_y+1){
-				d_offsets[c+offs] = (d_offsets_global + (nV+SL+1) * myId)[c+offs];
+				d_offsets[c+offs] = (d_offsets_global + (nV+local_seqLen+1) * myId)[c+offs];
 			}
-			offs += SL+1;
+			offs += local_seqLen+1;
 		}while(offs < len_x+len_y+1);
 		
 		MaxCell max = { -999999, -1, -1 };
@@ -543,7 +580,10 @@ __inline__ __device__ MaxCell blockReduceMax(MaxCell cell){
 			__syncthreads();
 		}
 
-		max = blockReduceMax<(((SL-1) / wrapSize) + 1)>(max);
+		// max = blockReduceMax<(((SL-1) / wrapSize) + 1)>(max);
+
+		int wraps = ((seqLen - 1) / 32) + 1;
+		max = blockReduceMax_dynamic(max, wraps);
 		
 		if(c==0){
 			trace_back_lpo_alignment(len_x, len_y, moves_x, moves_y, left_x, left_y, lx_start, ly_start, 
@@ -637,6 +677,11 @@ __global__ void compute_d_offsets(int i_seq_idx, int j_seq_idx, int* nseq_offset
 	int len_x;
 	int len_y;
 
+	__shared__ int local_seqLen;
+	if (threadIdx.x == 0)
+		local_seqLen = seqLen;
+	__syncthreads();
+
 	int nV = dyn_len_global[myId];
 
 	if(myId == 0){
@@ -652,7 +697,7 @@ __global__ void compute_d_offsets(int i_seq_idx, int j_seq_idx, int* nseq_offset
 		
 		len_y = read_offsets[block_offset + j_seq_idx] - read_offsets[block_offset + j_seq_idx-1];
 
-		int* d_offsets = d_offsets_global + (nV + SL+1) * myId;  
+		int* d_offsets = d_offsets_global + (nV + local_seqLen+1) * myId;  
 
 		int min_d = len_x < len_y ? len_x : len_y;
 		int offset = 0;

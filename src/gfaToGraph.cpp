@@ -165,7 +165,6 @@ void convertGFAtoGraph(graph_h* g, const string& filename){
             int toIndex = nodeIdToIndex[toNode];
 
 			adjacencyList[seqs[toIndex].start].push_back(seqs[fromIndex].end);
-			cout << "Adjacency list: " << seqs[toIndex].start << " -> " << seqs[fromIndex].end << endl;
 			edgesNumber++;
 		}
 	}

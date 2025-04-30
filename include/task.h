@@ -48,6 +48,8 @@ struct TaskRefs{
 	
 	int* dyn_len_global_d;
 	int* dyn_nE_global_d;
+
+	int seqLen;
 };
 
 } //end poa_gpu_utils
