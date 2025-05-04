@@ -53,46 +53,6 @@ __device__ int* result;
 
 // __constant__ int seqLen;
 
-void checkCudaDeviceLimits(int seqLen, int shared_size, long long global_size) {
-    int device;
-    cudaDeviceProp prop;
-
-    cudaGetDevice(&device);
-    cudaGetDeviceProperties(&prop, device);
-
-	std::cout << "\nCUDA device properties:\n";
-    std::cout << "Checking CUDA device launch parameters...\n";
-    std::cout << "Device name: " << prop.name << "\n";
-    std::cout << "Max threads per block: " << prop.maxThreadsPerBlock << "\n";
-    std::cout << "Max shared memory per block (bytes): " << prop.sharedMemPerBlock << "\n";
-	std::cout << "Global memory size (MegaBytes): " << prop.totalGlobalMem / (1024 * 1024) << "\n";
-
-    if (seqLen + 1 > prop.maxThreadsPerBlock) {
-        std::cerr << "ERROR: seqLen + 1 (" << (seqLen + 1)
-                  << ") exceeds maxThreadsPerBlock (" << prop.maxThreadsPerBlock << ")\n";
-				  abort();
-    } else {
-        std::cout << "OK: Thread count per block is within limit.\n";
-    }
-
-    if (shared_size > prop.sharedMemPerBlock) {
-        std::cerr << "ERROR: Requested shared memory (" << shared_size
-                  << " bytes) exceeds device limit (" << prop.sharedMemPerBlock << " bytes)\n";
-				  abort();
-    } else {
-        std::cout << "OK: Shared memory used is: " << shared_size << " bytes, which is within limit.\n";
-    }
-
-	if (global_size > prop.totalGlobalMem) {
-        std::cerr << "ERROR: Requested global memory (" << global_size
-                  << " bytes) exceeds device limit (" << prop.totalGlobalMem << " bytes)\n";
-				  abort();
-    } else {
-        std::cout << "OK: Global memory used is: " << global_size / (1024 * 1024) << " MegaBytes, which is within limit.\n";
-    }
-
-    std::cout << "Check complete.\n";
-}
 
 __global__ void printGraphStructure(int numBlocks, int batchSize) {
 	// we lunch this kernel as <<1, 1>> so blockIdx.x is always the first
