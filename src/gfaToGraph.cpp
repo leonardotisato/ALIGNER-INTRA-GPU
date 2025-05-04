@@ -230,16 +230,16 @@ void convertGFAtoGraph(graph_h* g, const string& filename){
 	
 
 	// print the adjacency list
-	for (int i = 0; i < vertexNumber; i++) {
-		cout << "Adjacency list of vertex " << i << ": ";
-		for (int neighbor : adjacencyList[i]) {
-			cout << neighbor << " ";
-		}
-		cout << endl;
-	}
+	// for (int i = 0; i < vertexNumber; i++) {
+	// 	cout << "Adjacency list of vertex " << i << ": ";
+	// 	for (int neighbor : adjacencyList[i]) {
+	// 		cout << neighbor << " ";
+	// 	}
+	// 	cout << endl;
+	// }
 
-	cout << "Vertex Number: " << vertexNumber << endl;
-	cout << "Edges Number: " << edgesNumber << endl;
+	// cout << "Vertex Number: " << vertexNumber << endl;
+	// cout << "Edges Number: " << edgesNumber << endl;
 
 	// strcpy(vertexLabels, vertexLab.c_str());
 	
@@ -259,21 +259,21 @@ void convertGFAtoGraph(graph_h* g, const string& filename){
 	// 	cout << inOffset[i] << (i != vertexNumber ? ", " : "\n");
 	// }
 
-	cout << "Graph structure: " << endl;
+	// cout << "Graph structure: " << endl;
 
-	for(int i = 0; i < vertexNumber; i++){
-		cout << g->dyn_letters_global[i] << (i != vertexNumber - 1 ? ", " : "\n");
-	}
+	// for(int i = 0; i < vertexNumber; i++){
+	// 	cout << g->dyn_letters_global[i] << (i != vertexNumber - 1 ? ", " : "\n");
+	// }
 
-	cout <<"In Neigh: ";
-	for(int i = 0; i < edgesNumber; i++){
-		cout << g->dyn_edges_global[i] << (i != edgesNumber - 1 ? ", " : "\n");
-	}
+	// cout <<"In Neigh: ";
+	// for(int i = 0; i < edgesNumber; i++){
+	// 	cout << g->dyn_edges_global[i] << (i != edgesNumber - 1 ? ", " : "\n");
+	// }
 
-	cout << "In Offset: ";
-	for(int i = 0; i < vertexNumber + 1; i++){
-		cout << g->dyn_edge_bounds_global[i] << (i != vertexNumber ? ", " : "\n");
-	}
+	// cout << "In Offset: ";
+	// for(int i = 0; i < vertexNumber + 1; i++){
+	// 	cout << g->dyn_edge_bounds_global[i] << (i != vertexNumber ? ", " : "\n");
+	// }
 
 	// delete[] vertexLabels;
 	// delete[] inNeigh;

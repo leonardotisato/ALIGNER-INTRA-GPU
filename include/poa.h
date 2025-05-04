@@ -19,7 +19,7 @@ void print_reads(vector<vector<string>> reads);
 
 int check_input_int(string &arg);
 
-void checkCudaDeviceLimits(int seqLen, int shared_size);
+void checkCudaDeviceLimits(int seqLen, int shared_size, long long global_size);
 
 __global__ void printGraphStructure(int numBlocks, int batchStructure);
 

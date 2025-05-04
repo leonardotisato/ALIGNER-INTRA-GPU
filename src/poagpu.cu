@@ -53,7 +53,7 @@ __device__ int* result;
 
 // __constant__ int seqLen;
 
-void checkCudaDeviceLimits(int seqLen, int shared_size) {
+void checkCudaDeviceLimits(int seqLen, int shared_size, long long global_size) {
     int device;
     cudaDeviceProp prop;
 
@@ -65,10 +65,12 @@ void checkCudaDeviceLimits(int seqLen, int shared_size) {
     std::cout << "Device name: " << prop.name << "\n";
     std::cout << "Max threads per block: " << prop.maxThreadsPerBlock << "\n";
     std::cout << "Max shared memory per block (bytes): " << prop.sharedMemPerBlock << "\n";
+	std::cout << "Global memory size (MegaBytes): " << prop.totalGlobalMem / (1024 * 1024) << "\n";
 
     if (seqLen + 1 > prop.maxThreadsPerBlock) {
         std::cerr << "ERROR: seqLen + 1 (" << (seqLen + 1)
                   << ") exceeds maxThreadsPerBlock (" << prop.maxThreadsPerBlock << ")\n";
+				  abort();
     } else {
         std::cout << "OK: Thread count per block is within limit.\n";
     }
@@ -76,8 +78,17 @@ void checkCudaDeviceLimits(int seqLen, int shared_size) {
     if (shared_size > prop.sharedMemPerBlock) {
         std::cerr << "ERROR: Requested shared memory (" << shared_size
                   << " bytes) exceeds device limit (" << prop.sharedMemPerBlock << " bytes)\n";
+				  abort();
     } else {
-        std::cout << "OK: Shared memory size is within limit.\n";
+        std::cout << "OK: Shared memory used is: " << shared_size << " bytes, which is within limit.\n";
+    }
+
+	if (global_size > prop.totalGlobalMem) {
+        std::cerr << "ERROR: Requested global memory (" << global_size
+                  << " bytes) exceeds device limit (" << prop.totalGlobalMem << " bytes)\n";
+				  abort();
+    } else {
+        std::cout << "OK: Global memory used is: " << global_size / (1024 * 1024) << " MegaBytes, which is within limit.\n";
     }
 
     std::cout << "Check complete.\n";
@@ -598,19 +609,19 @@ __inline__ __device__ MaxCell blockReduceMax_dynamic(MaxCell cell, int num_wraps
 			}
 			__syncthreads();
 
-			// aaggiunto da me: solo un thread stampa la diagonale corrente
-			if (threadIdx.x == 0 && blockIdx.x == 0) {
-				// printf("Printing DP Matrix: \n");
-				int end = (n<(len_x + len_y)) ? d_offsets[n + 1] : (len_x+1) * (len_y+1);
-				// printf("Diagonal %d, (%d %d %d):", n, d_offsets[n], d_offsets[n + 1], end);
-				printf("Diagonal %d:", n);
-				for (int d = d_offsets[n]; d < end; d++) {
-					// printf("(%d %d)", diagonals_sc[d], d);
-					printf("(%d)", diagonals_sc[d]);
-				}
-				printf("\n");
-			}
-			__syncthreads();
+			// // aaggiunto da me: solo un thread stampa la diagonale corrente
+			// if (threadIdx.x == 0 && blockIdx.x == 0) {
+			// 	// printf("Printing DP Matrix: \n");
+			// 	int end = (n<(len_x + len_y)) ? d_offsets[n + 1] : (len_x+1) * (len_y+1);
+			// 	// printf("Diagonal %d, (%d %d %d):", n, d_offsets[n], d_offsets[n + 1], end);
+			// 	printf("Diagonal %d:", n);
+			// 	for (int d = d_offsets[n]; d < end; d++) {
+			// 		// printf("(%d %d)", diagonals_sc[d], d);
+			// 		printf("(%d)", diagonals_sc[d]);
+			// 	}
+			// 	printf("\n");
+			// }
+			// __syncthreads();
 		}
 
 		if(c==0) {
@@ -633,30 +644,6 @@ __inline__ __device__ MaxCell blockReduceMax_dynamic(MaxCell cell, int num_wraps
 	} //thread execution if-end
 	
 	return;
-}
-
-
-__global__ void compute_edge_offsets(int* seq_offsets, int* nseq_offsets){
-	
-	int myId = blockIdx.x;	
-	int seq_idx = threadIdx.x;
-	int block_offset;
-	int n_seq;
-	
-	read_offsets = seq_offsets; 
-	
-	if(myId == 0){
-		block_offset = 0;
-		n_seq = nseq_offsets[myId];
-
-	}else{
-		block_offset = nseq_offsets[myId-1];
-		n_seq = nseq_offsets[myId] - nseq_offsets[myId-1];
-	}
-	
-	if(seq_idx < n_seq){	
-		read_offsets[block_offset + seq_idx] = seq_offsets[block_offset + seq_idx];
-	}
 }
 
 

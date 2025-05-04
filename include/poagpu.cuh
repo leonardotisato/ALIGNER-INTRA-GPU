@@ -89,11 +89,11 @@ void init_kernel_block_parameters(vector<vector<string>> &reads, char** sequence
 
 
 	// printing things
-	cout << "N_seq_offs: ";
-	for(int i = first_el; i < numBlocks + first_el && i < reads.size(); i++) {
-		cout << nseq_offsets[i - first_el] << " ";
-	}
-	cout << endl;
+	// cout << "N_seq_offs: ";
+	// for(int i = first_el; i < numBlocks + first_el && i < reads.size(); i++) {
+	// 	cout << nseq_offsets[i - first_el] << " ";
+	// }
+	// cout << endl;
 
 
 	*tot_nseq = nseq_offsets[n-1];
@@ -113,17 +113,17 @@ void init_kernel_block_parameters(vector<vector<string>> &reads, char** sequence
 	partial_sum(seq_offsets.begin(), seq_offsets.end(), seq_offsets.begin());
 
 	// printing things (sembrerebbe che seq_offsets sia in termini di numero di caratteri)
-	int numReads = 0;
-	for(int i = 0; i < reads.size(); i++){
-		numReads += reads[i].size();
-	}
-	cout << "numReads = " << numReads << endl;
-	cout << "seq_offs: ";
-	// upper bound of the forcycle isn't correct (it's over stimated)(reads index should be updated)
-	for(int i = first_el; i < numBlocks * batchSize && i < numReads + first_el && i < first_el + numBlocks * reads[0].size(); i++) {
-		cout << seq_offsets[i - first_el] << " ";
-	}
-	cout << endl;
+	// int numReads = 0;
+	// for(int i = 0; i < reads.size(); i++){
+	// 	numReads += reads[i].size();
+	// }
+	// cout << "numReads = " << numReads << endl;
+	// cout << "seq_offs: ";
+	// // upper bound of the forcycle isn't correct (it's over stimated)(reads index should be updated)
+	// for(int i = first_el; i < numBlocks * batchSize && i < numReads + first_el && i < first_el + numBlocks * reads[0].size(); i++) {
+	// 	cout << seq_offsets[i - first_el] << " ";
+	// }
+	// cout << endl;
 
 	// tot size è in numero di caratteri
 	int tot_size = seq_offsets[sequence_idx-1];
@@ -185,6 +185,8 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 		cudaErrchk(cudaMemcpy(T.dyn_nE_global_d + offset_len, &g->edgesNumber, sizeof(int), cudaMemcpyHostToDevice));
 	}
 
+	cudaStreamSynchronize(0);
+
 	// T.dyn_len_global_d = g->dyn_len_global;
 
 	// assegna ai puntatori allocati sul device i puntatori di T
@@ -206,34 +208,29 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 	cudaErrchk(cudaMemcpy(T.sequences_d, T.sequences, T.seq_offsets[T.tot_nseq-1], cudaMemcpyHostToDevice));
 	cudaErrchk(cudaMemcpy(T.seq_offsets_d, T.seq_offsets.data(), T.tot_nseq * sizeof(int), cudaMemcpyHostToDevice));
 	cudaErrchk(cudaMemcpy(T.nseq_offsets_d, T.nseq_offsets.data(), (unsigned long long)BLOCKS * sizeof(int), cudaMemcpyHostToDevice));
-
-	// compute_edge_offsets<<<BLOCKS, batchSize>>>(T.seq_offsets_d, T.nseq_offsets_d);\
 	
 	cudaStreamSynchronize(0);
 
 	auto memcpy = NOW;
     int c = duration_cast<microseconds>(memcpy - start).count();
     std::cout << "Memcpy duration: " << c << " microseconds" << std::endl;
-	
-	// for(int i = 0; i < batchSize; i++){
-	// 	generate_lpo<<<BLOCKS, SL+1>>>(T.sequences_d, T.seq_offsets_d, T.nseq_offsets_d, i);
-	// }
-
-	printGraphStructure<<<1, 1>>>(numBlocks, batchSize);
-
-	cudaStreamSynchronize(0);
-
-	// generate_lpo<<<BLOCKS, SL+1>>>(T.sequences_d, T.seq_offsets_d, T.nseq_offsets_d);
 
 	// printGraphStructure<<<1, 1>>>(numBlocks, batchSize);
+
 	// cudaStreamSynchronize(0);
 
 	// FIXME: Se nV, nE variano per blocco, fai questo calcolo per ogni blocco (es. in un loop se necessario).
 	int shared_size = (nV+1 + seqLen+1 + nV+seqLen+1)*sizeof(int) + 
 		nE*sizeof(Edge) + seqLen*sizeof(Edge) + seqLen*sizeof(unsigned char);
 
+	long long global_size = sizeof(int) + (unsigned long long)numBlocks * sizeof(int) + (unsigned long long)numBlocks * sizeof(int) +
+					(unsigned long long)seqLen * batchSize * numBlocks + (unsigned long long)numBlocks * batchSize * sizeof(int) + 
+					(unsigned long long)numBlocks * sizeof(int) + (unsigned long long)nV * numBlocks + (unsigned long long)nE * numBlocks * sizeof(Edge) +
+					(unsigned long long)(nV+1) * numBlocks * sizeof(int) + (unsigned long long)2 * (nV+1) * (seqLen+1) * numBlocks * sizeof(unsigned char) + 
+					(unsigned long long)(nV+1)*(seqLen+1) * numBlocks * sizeof(short) + (unsigned long long)(nV + seqLen+1) * numBlocks * sizeof(int) + 
+					(unsigned long long)nV * numBlocks * sizeof(int) + (unsigned long long)nV * numBlocks * sizeof(int) + (unsigned long long)numBlocks * sizeof(int);
 
-	checkCudaDeviceLimits(seqLen, shared_size);
+	checkCudaDeviceLimits(seqLen, shared_size, global_size);
 
 	int i_seq_idx = 0;
 
@@ -243,18 +240,16 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 			BLOCKS = lastBatch;
 		}
 
-		cout << endl;
-		cout << "BLOCKS = " << BLOCKS << "   numBlocks = " << numBlocks << "   batchSize = " << batchSize << "   j_seq_idx = " << j_seq_idx << endl;		
-		
-		// printf("\n\nGRAPH CREATED --> BEGIN ALIGNMENT\n");
-
-		cudaStreamSynchronize(0);
+		// cout << endl;
+		// cout << "BLOCKS = " << BLOCKS << "   numBlocks = " << numBlocks << "   batchSize = " << batchSize << "   j_seq_idx = " << j_seq_idx << endl;		
 				
 		compute_d_offsets<<<BLOCKS, 1>>>(i_seq_idx, j_seq_idx, T.nseq_offsets_d);
 		
 		cudaStreamSynchronize(0); 
 		
 		init_diagonals<<<BLOCKS, 1>>>(i_seq_idx, j_seq_idx, T.uses_global, T.nseq_offsets_d);
+
+		cudaStreamSynchronize(0);
 
 		sw_align<<<BLOCKS, seqLen+1, shared_size>>>(i_seq_idx, j_seq_idx, T.uses_global, T.nseq_offsets_d);
 		
@@ -268,7 +263,7 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 	}
 
 	auto alignment = NOW;
-    c = duration_cast<microseconds>(alignment - start).count();
+    c = duration_cast<microseconds>(alignment - memcpy).count();
     std::cout << "Alignment duration: " << c << " microseconds" << std::endl;
 }
 
