@@ -18,8 +18,6 @@
 #define SL 120
 #define MAXL 10
 
-#define EDGE_F 1 // Heuristic mean degree for graphs
-
 
 using namespace std;
 using namespace chrono;
@@ -41,9 +39,6 @@ inline void gpu_POA_alloc(TaskRefs &T, const int numBlocks, int batchSize, int n
 
 	// alloco memoria sul device, la memoria è puntata da puntatori che risiedono sulla memoria dell'host
 
-	// T.result = (char*)malloc(batchSize * nV * numBlocks);
-	// T.res_size = (int*)malloc(numBlocks * sizeof(int));
-
 	cudaErrchk(cudaMalloc(&T.space_exceeded, sizeof(int)));
 
 	cudaErrchk(cudaMalloc(&T.dyn_len_global_d, (unsigned long long)numBlocks * sizeof(int)));
@@ -52,8 +47,6 @@ inline void gpu_POA_alloc(TaskRefs &T, const int numBlocks, int batchSize, int n
 	cudaErrchk(cudaMalloc(&T.sequences_d, (unsigned long long)seqLen * batchSize * numBlocks)); 
 	cudaErrchk(cudaMalloc(&T.seq_offsets_d, (unsigned long long)numBlocks * batchSize * sizeof(int))); 
 	cudaErrchk(cudaMalloc(&T.nseq_offsets_d, (unsigned long long)numBlocks * sizeof(int))); 
-	// cudaErrchk(cudaMalloc(&T.result_d, (unsigned long long)nV * batchSize * numBlocks)); 
-	// cudaErrchk(cudaMalloc(&T.res_size_d, (unsigned long long)numBlocks * sizeof(int)));
 
 	cudaErrchk(cudaMalloc(&T.dyn_letters_global_d, (unsigned long long)nV * numBlocks));
 	cudaErrchk(cudaMalloc(&T.dyn_edges_global_d, (unsigned long long)nE * numBlocks * sizeof(Edge)));
@@ -65,14 +58,14 @@ inline void gpu_POA_alloc(TaskRefs &T, const int numBlocks, int batchSize, int n
 	cudaErrchk(cudaMalloc(&T.d_offsets_global_d, (unsigned long long)(nV + seqLen+1) * numBlocks * sizeof(int)));
 	cudaErrchk(cudaMalloc(&T.x_to_ys_d, (unsigned long long)nV * numBlocks * sizeof(int)));
 	cudaErrchk(cudaMalloc(&T.y_to_xs_d, (unsigned long long)nV * numBlocks * sizeof(int)));
+
+	cudaErrchk(cudaMalloc(&T.results_d, (unsigned long long)numBlocks * sizeof(int)));
 }
 
 inline void gpu_POA_free(TaskRefs &T){
 
 	cudaDeviceReset();
-	
-	// free(T.result);
-	// free(T.res_size);
+
 }
 
 static const int NOT_ALIGNED = -1;
@@ -170,6 +163,8 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 		numReads += reads[i].size();
 	}
 
+	T.results = (int*)malloc(numReads * sizeof(int));
+
 	int lastBatch = numReads % numBlocks;
 
 	int *space_exceeded = (int*)malloc(sizeof(int));
@@ -183,30 +178,11 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 		size_t offset_bounds = b * (g->dyn_len_global + 1);
 		size_t offset_len = b;
 	
-		cudaErrchk(cudaMemcpy(T.dyn_letters_global_d + offset_letters,
-							  g->dyn_letters_global,
-							  g->dyn_len_global * sizeof(unsigned char),
-							  cudaMemcpyHostToDevice));
-	
-		cudaErrchk(cudaMemcpy(T.dyn_edges_global_d + offset_edges,
-							  g->dyn_edges_global,
-							  g->edgesNumber * sizeof(Edge),
-							  cudaMemcpyHostToDevice));
-	
-		cudaErrchk(cudaMemcpy(T.dyn_edge_bounds_global_d + offset_bounds,
-							  g->dyn_edge_bounds_global,
-							  (g->dyn_len_global + 1) * sizeof(int),
-							  cudaMemcpyHostToDevice));
-
-		cudaErrchk(cudaMemcpy(T.dyn_len_global_d + offset_len,
-								&g->dyn_len_global,
-								sizeof(int),
-							  	cudaMemcpyHostToDevice));
-
-		cudaErrchk(cudaMemcpy(T.dyn_nE_global_d + offset_len,
-								&g->edgesNumber,
-								sizeof(int),
-								cudaMemcpyHostToDevice));
+		cudaErrchk(cudaMemcpy(T.dyn_letters_global_d + offset_letters, g->dyn_letters_global, g->dyn_len_global * sizeof(unsigned char), cudaMemcpyHostToDevice));
+		cudaErrchk(cudaMemcpy(T.dyn_edges_global_d + offset_edges, g->dyn_edges_global, g->edgesNumber * sizeof(Edge), cudaMemcpyHostToDevice));	
+		cudaErrchk(cudaMemcpy(T.dyn_edge_bounds_global_d + offset_bounds, g->dyn_edge_bounds_global, (g->dyn_len_global + 1) * sizeof(int), cudaMemcpyHostToDevice));
+		cudaErrchk(cudaMemcpy(T.dyn_len_global_d + offset_len, &g->dyn_len_global, sizeof(int), cudaMemcpyHostToDevice));
+		cudaErrchk(cudaMemcpy(T.dyn_nE_global_d + offset_len, &g->edgesNumber, sizeof(int), cudaMemcpyHostToDevice));
 	}
 
 	// T.dyn_len_global_d = g->dyn_len_global;
@@ -214,7 +190,7 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 	// assegna ai puntatori allocati sul device i puntatori di T
 	assign_device_memory<<<1, 1>>>(T.dyn_letters_global_d, T.dyn_edges_global_d, T.dyn_edge_bounds_global_d, 
 				       T.moves_global_d, T.diagonals_global_sc_d, T.d_offsets_global_d, T.x_to_ys_d, T.y_to_xs_d, 
-					   T.dyn_len_global_d, numBlocks, T.seq_offsets_d, T.sequences_d, T.dyn_nE_global_d, seqLen);
+					   T.dyn_len_global_d, numBlocks, T.seq_offsets_d, T.sequences_d, T.dyn_nE_global_d, seqLen, T.results_d);
 
 	cudaStreamSynchronize(0);
 
@@ -236,7 +212,7 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 	cudaStreamSynchronize(0);
 
 	auto memcpy = NOW;
-    double c = duration_cast<microseconds>(memcpy - start).count();
+    int c = duration_cast<microseconds>(memcpy - start).count();
     std::cout << "Memcpy duration: " << c << " microseconds" << std::endl;
 	
 	// for(int i = 0; i < batchSize; i++){
@@ -256,6 +232,8 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 	int shared_size = (nV+1 + seqLen+1 + nV+seqLen+1)*sizeof(int) + 
 		nE*sizeof(Edge) + seqLen*sizeof(Edge) + seqLen*sizeof(unsigned char);
 
+
+	checkCudaDeviceLimits(seqLen, shared_size);
 
 	int i_seq_idx = 0;
 
@@ -278,10 +256,13 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 		
 		init_diagonals<<<BLOCKS, 1>>>(i_seq_idx, j_seq_idx, T.uses_global, T.nseq_offsets_d);
 
-		checkCudaDeviceLimits(seqLen, shared_size);
 		sw_align<<<BLOCKS, seqLen+1, shared_size>>>(i_seq_idx, j_seq_idx, T.uses_global, T.nseq_offsets_d);
 		
 		// sw_align<<<BLOCKS, SL+1>>>(i_seq_idx, j_seq_idx, T.uses_global, T.nseq_offsets_d);
+
+		cudaStreamSynchronize(0);
+
+		cudaErrchk(cudaMemcpy(T.results + j_seq_idx * numBlocks, T.results_d, (unsigned long long)BLOCKS * sizeof(int), cudaMemcpyDeviceToHost));
 		
 		cudaStreamSynchronize(0);
 	}

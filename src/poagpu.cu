@@ -10,8 +10,6 @@
 
 #define USES_GLOBAL 1
 
-#define EDGE_F 1 // Heuristic mean degree for graphs
-
 #define wrapSize 32
 #define FULL_MASK 0xffffffff
 
@@ -50,6 +48,8 @@ __device__ int* d_offsets_global;
 __device__ int* x_to_ys;
 __device__ int* y_to_xs;
 __device__ int g_space_exceeded = 0;
+
+__device__ int* result;
 
 // __constant__ int seqLen;
 
@@ -122,7 +122,7 @@ __global__ void printGraphStructure(int numBlocks, int batchSize) {
 
 
 __global__ void assign_device_memory( char* dletters, Edge* dedges, int* dedgebounds, unsigned char* moves, short* diagonals_sc, 
-									int* d_offs, int* xy, int* yx, int* dynlg, const int num_blocks, int* roffs, char* reads, int* dynne, int seqlen){
+									int* d_offs, int* xy, int* yx, int* dynlg, const int num_blocks, int* roffs, char* reads, int* dynne, int seqlen, int* res){
 	
 
 	// assegno puntatori allocati sull'host che puntano a memoria allocata sul device a puntatori allocati sul device
@@ -153,6 +153,8 @@ __global__ void assign_device_memory( char* dletters, Edge* dedges, int* dedgebo
 
 	dyn_len_global = dynlg;
 	dyn_nE_global = dynne;
+
+	result = res;
 
 }
 
@@ -611,6 +613,11 @@ __inline__ __device__ MaxCell blockReduceMax_dynamic(MaxCell cell, int num_wraps
 			__syncthreads();
 		}
 
+		if(c==0) {
+			result[myId] = max.val;
+			// printf(" (%d, %d) ", result[myId], myId);
+		}
+
 		// max = blockReduceMax<(((SL-1) / wrapSize) + 1)>(max);
 
 		int wraps = ((seqLen - 1) / 32) + 1;
@@ -649,51 +656,6 @@ __global__ void compute_edge_offsets(int* seq_offsets, int* nseq_offsets){
 	
 	if(seq_idx < n_seq){	
 		read_offsets[block_offset + seq_idx] = seq_offsets[block_offset + seq_idx];
-	}
-}
-
-
-__global__ void generate_lpo(char* seq, int* seq_offsets, int* nseq_offsets) {
-
-	int myTId = threadIdx.x;
-	int myId = blockIdx.x;
-	
-	int char_idx = myTId;
-	int seq_len;
-	int offset;
-	int block_offset;
-	
-	if(myId == 0){
-		block_offset = 0;
-	}else{
-		block_offset = nseq_offsets[myId-1];
-	}
-	
-	if(block_offset == 0){ 
-		offset = 0;                             
-		seq_len = seq_offsets[block_offset];
-	}else{
-		seq_len = seq_offsets[block_offset] - seq_offsets[block_offset-1];
-		offset = seq_offsets[block_offset-1];
-	}
-
-	char* sequence = seq + offset; 
-	char* seq_x;
-	Edge* left_x;
-	int* start_x;
-
-	dyn_len_global[myId] = seq_len;
-	seq_x = dyn_letters_global + MAXL * myId;
-	left_x = dyn_edges_global + MAXL * EDGE_F * myId;
-	start_x = dyn_edge_bounds_global + (MAXL+1) * myId;
-	
-	if (char_idx < seq_len ) {	
-		left_x[char_idx] = char_idx - 1;
-		start_x[char_idx] = char_idx;
-		seq_x[char_idx] = sequence[char_idx];
-	}
-	if(char_idx == seq_len) {
-		start_x[char_idx] = char_idx;
 	}
 }
 

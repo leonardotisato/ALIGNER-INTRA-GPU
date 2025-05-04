@@ -51,28 +51,22 @@ void read_batch(vector<vector<string>> &reads, size_t size, string filename){
     string line;
     vector<string> allReads;
 
-    // Legge l'intero file e raccoglie le righe utili (non intestazioni, non vuote)
     while (getline(infile, line)) {
-        // Rimozione spazi bianchi iniziali e finali
         line.erase(0, line.find_first_not_of(" \t\n\r"));
         if (!line.empty())
             line.erase(line.find_last_not_of(" \t\n\r") + 1);
-
-        // Salta righe vuote o linee di intestazione (che iniziano con '>')
         if (line.empty() || line[0] == '>')
             continue;
         allReads.push_back(line);
     }
     infile.close();
 
-    // Calcola il numero totale di reads e la dimensione base per ogni gruppo
     int total = allReads.size();
     int base = total / size;
-    int remainder = total % size; // i primi "remainder" gruppi avranno 1 elemento in più
+    int remainder = total % size;
 
     int index = 0;
     for (size_t group = 0; group < size; group++) {
-        // Per ogni gruppo, calcola quanti elementi deve avere
         int groupSize = base + (group < remainder ? 1 : 0);
         vector<string> groupReads;
         for (int j = 0; j < groupSize; j++) {
@@ -80,20 +74,15 @@ void read_batch(vector<vector<string>> &reads, size_t size, string filename){
         }
         reads.push_back(groupReads);
     }
-
-    // cout << "Distribuzione effettuata: " << endl;
-    // for (size_t i = 0; i < reads.size(); i++) {
-    //     cout << "Gruppo " << i << " ha " << reads[i].size() << " reads" << endl;
-    // }
 }
 
 void get_bmean_batch_result_gpu(vector<vector<string>> reads, int &c, const int numBlocks, int batchSize, graph_h* g){
 
-	poa_gpu_utils::TaskRefs T;		// struct con dentro TUUUUUTTO
-	// size_t size = reads.size();
+	poa_gpu_utils::TaskRefs T;
 
 	auto start = NOW;
 
+    // calc max seqLen (will be optimized)
     size_t seqLen = 0;
     for (const auto& batch : reads) {
         for (const auto& read : batch) {
@@ -103,6 +92,10 @@ void get_bmean_batch_result_gpu(vector<vector<string>> reads, int &c, const int 
     }
 
 	gpu_POA_alloc(T, numBlocks, batchSize, g->dyn_len_global, g->edgesNumber, seqLen);
+    auto alloc = NOW;
+    c = duration_cast<microseconds>(alloc - start).count();
+	std::cout << "Alloc duration: " << c << " microseconds" << std::endl;
+
 	gpu_POA(reads, T, numBlocks, batchSize, g, seqLen);
     auto alignment = NOW;
     c = duration_cast<microseconds>(alignment - start).count();
@@ -113,4 +106,14 @@ void get_bmean_batch_result_gpu(vector<vector<string>> reads, int &c, const int 
 	auto end = NOW;
 	c = duration_cast<microseconds>(end - start).count();
 	std::cout << "Total duration: " << c << " microseconds" << std::endl;
+
+    int numReads = 0;
+	for(int i = 0; i < reads.size(); i++) {
+		numReads += reads[i].size();
+	}
+
+    for(int i = 0; i < numReads; i++) {
+        printf(" %d ", T.results[i]);
+    }
+    printf("\n");
 }

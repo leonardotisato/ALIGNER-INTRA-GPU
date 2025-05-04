@@ -20,20 +20,20 @@ struct TaskRefs{
 	
 	int uses_global = USES_GLOBAL;
 	
-	vector<int> nseq_offsets;// = vector<int>(BDIM);
+	vector<int> nseq_offsets;
 	int tot_nseq = 0;
 	char* sequences;
 	vector<int> seq_offsets;
 
 	int* space_exceeded;
-	// char* result;//[WL * MAXL * BDIM];
-	// int* res_size;//[BDIM];
+	
+	int* results;
 	
 	int* nseq_offsets_d;
 	char* sequences_d;
-	// char* result_d;
 	int* seq_offsets_d;
-	// int* res_size_d;
+	
+	int* results_d;
 
 	char* dyn_letters_global_d;	
 	Edge* dyn_edges_global_d;

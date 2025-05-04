@@ -46,31 +46,8 @@ def main():
         print("[ERRORE] Tutti i parametri devono essere numeri interi.")
         print_help()
         sys.exit(1)
-
-    # Percorso relativo allo script (che sta in scripts/)
+        
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-    # # Costruzione dei percorsi
-    # poagpu_exec = os.path.join(base_dir, "poagpu")
-
-    # if use_example:
-    #     graph_file = os.path.join(base_dir, "test/examples/graph.gfa")
-    #     reads_file = os.path.join(base_dir, "test/examples/reads.fa")
-    # else:
-    #     graph_file = os.path.join(base_dir, f"test/graph/graph_{num_vertici}.gfa")
-    #     reads_folder = format_reads_folder(num_reads)
-    #     reads_file = os.path.join(base_dir, f"test/reads/{reads_folder}/reads_{len_reads}.fa")
-
-    # # Controllo esistenza file
-    # if not os.path.isfile(poagpu_exec):
-    #     print(f"[ERRORE] Eseguibile non trovato: {poagpu_exec}")
-    #     sys.exit(1)
-    # if not os.path.isfile(graph_file):
-    #     print(f"[ERRORE] File grafo non trovato: {graph_file}")
-    #     sys.exit(1)
-    # if not os.path.isfile(reads_file):
-    #     print(f"[ERRORE] File reads non trovato: {reads_file}")
-    #     sys.exit(1)
 
       # Percorsi relativi
     if use_example:
