@@ -82,7 +82,6 @@ void get_bmean_batch_result_gpu(vector<vector<string>> reads, int &c, const int 
 
 	auto start = NOW;
 
-    // calc max seqLen (will be optimized)
     size_t seqLen = 0;
     for (const auto& batch : reads) {
         for (const auto& read : batch) {

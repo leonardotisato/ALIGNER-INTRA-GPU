@@ -15,10 +15,6 @@
 
 #define DEBUG 1
 
-#define SL 120
-#define MAXL 10
-
-
 using namespace std;
 using namespace chrono;
 using namespace poa_gpu_utils;
@@ -72,7 +68,7 @@ void checkCudaDeviceLimits(int seqLen, int shared_size, long long global_size) {
         std::cout << "OK: Global memory used is: " << global_size / (1024 * 1024) << " MegaBytes, which is within limit.\n";
     }
 
-    std::cout << "Check complete.\n";
+    std::cout << "Check complete.\n\n";
 }
 
 
@@ -113,13 +109,8 @@ static const int NOT_ALIGNED = -1;
 
 void init_kernel_block_parameters(vector<vector<string>> &reads, char** sequences, vector<int> &nseq_offsets, 
 								vector<int> &seq_offsets, int* tot_nseq, int first_el, const int numBlocks, int batchSize) {
-
-	cout << "FIRST EL = " << first_el << endl;
 						
 	int n = (first_el + numBlocks < reads.size()) ? numBlocks : reads.size() - first_el;
-
-	// first_el == batch_Idx
-	// for dall'inizio del batch alla fine del batch 
 
 	// filling nseq_offset
 	for(int window_idx = first_el; window_idx < first_el + numBlocks && window_idx < reads.size(); window_idx++) {
@@ -128,20 +119,9 @@ void init_kernel_block_parameters(vector<vector<string>> &reads, char** sequence
 	}
 	partial_sum(nseq_offsets.begin(),nseq_offsets.end(),nseq_offsets.begin());
 
-
-	// printing things
-	// cout << "N_seq_offs: ";
-	// for(int i = first_el; i < numBlocks + first_el && i < reads.size(); i++) {
-	// 	cout << nseq_offsets[i - first_el] << " ";
-	// }
-	// cout << endl;
-
-
 	*tot_nseq = nseq_offsets[n-1];
 	seq_offsets = vector<int>(*tot_nseq);
 
-	cout << "tot seq = " << *tot_nseq << endl;
-	
 	int sequence_idx = 0;
 	for(int window_idx = first_el; window_idx < first_el + numBlocks && window_idx < reads.size(); window_idx++) {
 		vector<string> &window = reads[window_idx];			
@@ -153,23 +133,7 @@ void init_kernel_block_parameters(vector<vector<string>> &reads, char** sequence
 	}
 	partial_sum(seq_offsets.begin(), seq_offsets.end(), seq_offsets.begin());
 
-	// printing things (sembrerebbe che seq_offsets sia in termini di numero di caratteri)
-	// int numReads = 0;
-	// for(int i = 0; i < reads.size(); i++){
-	// 	numReads += reads[i].size();
-	// }
-	// cout << "numReads = " << numReads << endl;
-	// cout << "seq_offs: ";
-	// // upper bound of the forcycle isn't correct (it's over stimated)(reads index should be updated)
-	// for(int i = first_el; i < numBlocks * batchSize && i < numReads + first_el && i < first_el + numBlocks * reads[0].size(); i++) {
-	// 	cout << seq_offsets[i - first_el] << " ";
-	// }
-	// cout << endl;
-
-	// tot size è in numero di caratteri
 	int tot_size = seq_offsets[sequence_idx-1];
-
-	cout << "tot_size = " << tot_size << endl;
 
 	*sequences = (char*)malloc(tot_size);
 	sequence_idx = 0;
@@ -228,17 +192,13 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 
 	cudaStreamSynchronize(0);
 
-	// T.dyn_len_global_d = g->dyn_len_global;
-
-	// assegna ai puntatori allocati sul device i puntatori di T
+	// assign to device pointers T pointers
 	assign_device_memory<<<1, 1>>>(T.dyn_letters_global_d, T.dyn_edges_global_d, T.dyn_edge_bounds_global_d, 
 				       T.moves_global_d, T.diagonals_global_sc_d, T.d_offsets_global_d, T.x_to_ys_d, T.y_to_xs_d, 
 					   T.dyn_len_global_d, numBlocks, T.seq_offsets_d, T.sequences_d, T.dyn_nE_global_d, seqLen, T.results_d);
 
 	cudaStreamSynchronize(0);
 
-	// cudaMemcpyToSymbol(d_nV, T.dyn_len_global_d, sizeof(int));
-	// cudaMemcpyToSymbol(d_nE, T.dyn_len_global_d, sizeof(int));
 
 	int block_offset = 0;
 	int BLOCKS = numBlocks;
@@ -260,7 +220,6 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 
 	// cudaStreamSynchronize(0);
 
-	// FIXME: Se nV, nE variano per blocco, fai questo calcolo per ogni blocco (es. in un loop se necessario).
 	int shared_size = (nV+1 + seqLen+1 + nV+seqLen+1)*sizeof(int) + 
 		nE*sizeof(Edge) + seqLen*sizeof(Edge) + seqLen*sizeof(unsigned char);
 

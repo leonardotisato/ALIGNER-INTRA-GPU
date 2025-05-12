@@ -1,10 +1,3 @@
-// TODO: 
-// - optimize recent updates
-// - ottimizza copia di dati da memoria host a memoria device
-// - salva cigar
-// - code cleanup
-
-
 #include <cuda_runtime.h>
 #include <chrono>
 #include <unistd.h>
