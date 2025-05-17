@@ -73,8 +73,9 @@ This script allows you to reproduce our benchmarks or run structured tests with 
 
 ## 👨‍💻 Authors
 
-Developed by **Leonardo Tisato**  and **Gabriele Amodeo**
-Supervised by **Ph.D Student Mirko Coggi** and **Prof. Marco Domenico Santambrogio**
+Developed by **Leonardo Tisato**  and **Gabriele Amodeo**.
+
+Supervised by **Ph.D Student Mirko Coggi** and **Prof. Marco Domenico Santambrogio**.
 
 ---
 
