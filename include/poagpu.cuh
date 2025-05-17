@@ -236,6 +236,8 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 
 	int i_seq_idx = 0;
 
+	c = 0;
+
 	for(int j_seq_idx = 0; j_seq_idx < batchSize; j_seq_idx++) {
 
 		if(j_seq_idx == batchSize-1 && lastBatch != 0){
@@ -251,18 +253,24 @@ void gpu_POA(vector<vector<string>> &reads, TaskRefs &T, const int numBlocks, in
 		
 		init_diagonals<<<BLOCKS, 1>>>(i_seq_idx, j_seq_idx, T.uses_global, T.nseq_offsets_d);
 
-		cudaStreamSynchronize(0);
+		cudaErrchk(cudaStreamSynchronize(0));
 
-		sw_align<<<BLOCKS, seqLen+1, shared_size>>>(i_seq_idx, j_seq_idx, T.uses_global, T.nseq_offsets_d);
+		// sw_align<<<BLOCKS, seqLen+1, shared_size>>>(i_seq_idx, j_seq_idx, T.uses_global, T.nseq_offsets_d);
+		auto sprecise = NOW;
 		
-		// sw_align<<<BLOCKS, SL+1>>>(i_seq_idx, j_seq_idx, T.uses_global, T.nseq_offsets_d);
+		sw_align<<<BLOCKS, seqLen+1>>>(i_seq_idx, j_seq_idx, T.uses_global, T.nseq_offsets_d);
 
-		cudaStreamSynchronize(0);
+		cudaErrchk(cudaStreamSynchronize(0));
+
+		auto eprecise = NOW;
+		c += duration_cast<microseconds>(eprecise - sprecise).count();
 
 		cudaErrchk(cudaMemcpy(T.results + j_seq_idx * numBlocks, T.results_d, (unsigned long long)BLOCKS * sizeof(int), cudaMemcpyDeviceToHost));
 		
 		cudaStreamSynchronize(0);
 	}
+
+	std::cout << "Precise " << c << " microseconds\n";
 
 	auto end_alignment = NOW;
     c = duration_cast<microseconds>(end_alignment - start_alignment).count();
