@@ -5,8 +5,11 @@
 #include <string>
 #include <fstream>
 #include <map>
+#include <filesystem>
+#include <chrono>
+#include <iomanip>
+#include <sstream>
 #include "../include/poagpu.cuh"
-
 
 int check_input_int(string &arg){
 	
@@ -102,14 +105,4 @@ void get_bmean_batch_result_gpu(vector<vector<string>> reads, int &c, const int 
 	auto end = NOW;
 	c = duration_cast<microseconds>(end - start).count();
 	std::cout << "Total duration: " << c << " microseconds" << std::endl;
-
-    // int numReads = 0;
-	// for(int i = 0; i < reads.size(); i++) {
-	// 	numReads += reads[i].size();
-	// }
-
-    // for(int i = 0; i < numReads; i++) {
-    //     printf(" %d ", T.results[i]);
-    // }
-    // printf("\n");
 }
