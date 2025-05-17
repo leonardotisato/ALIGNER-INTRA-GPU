@@ -32,7 +32,7 @@ make clean
 You can run the aligner directly on any input files using:
 
 ```bash
-./poagpu <num_blocks> <graph_file.gfa> <reads_file.fa>
+./poagpu <num_blocks> <reads_file.fa> <graph_file.gfa>
 ```
 
 Arguments:
