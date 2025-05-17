@@ -10,15 +10,6 @@ This tool computes the optimal alignment score between a sequence and a genomic 
 
 ---
 
-## 📦 Requirements
-
-- CUDA Toolkit (>= 11.0)
-- NVIDIA GPU with Compute Capability 6.1 or higher (tested on GTX 1650)
-- CMake (>= 3.10)
-- C++17 compiler
-
----
-
 ## 🔧 Build Instructions
 
 To build the project:
@@ -41,7 +32,7 @@ make clean
 You can run the aligner directly on any input files using:
 
 ```bash
-./aligner <num_blocks> <graph_file.gfa> <reads_file.fa>
+./poagpu <num_blocks> <graph_file.gfa> <reads_file.fa>
 ```
 
 Arguments:
