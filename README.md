@@ -10,9 +10,6 @@ This tool computes the optimal alignment score between a sequence and a genomic 
 
 ---
 
-## WIP 🚧
-Further optimization work is currently ongoing in the optimization branch. Even though the project implements two-level parallelism—both inter-sequence and intra-sequence—and, to the best of our knowledge, is the only sequence-to-graph aligner in the state of the art to combine this approach with exact (full DP) alignment accelerated on GPU, the performance results so far have not been as satisfactory as we initially expected. 
-
 ## Build Instructions
 
 To build the project:

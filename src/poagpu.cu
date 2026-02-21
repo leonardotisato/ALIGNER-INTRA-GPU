@@ -363,57 +363,74 @@ __inline__ __device__ MaxCell blockReduceMax_dynamic(MaxCell cell, int num_wraps
 		}
 		__syncthreads();
 
-		extern __shared__ unsigned char shared_mem[]; // Raw shared memory
+		// extern __shared__ unsigned char shared_mem[]; // Raw shared memory
 
-		int* lx_start = (int*)shared_mem;
-		int* ly_start = (int*)&lx_start[nV + 1];
-		int* d_offsets = (int*)&ly_start[local_seqLen + 1];
-		Edge* left_x = (Edge*)&d_offsets[nV + local_seqLen + 1];
-		Edge* left_y = (Edge*)&left_x[nE];
-		unsigned char* seq_y = (unsigned char*)&left_y[local_seqLen];
+		// int* lx_start = (int*)shared_mem;
+		// int* ly_start = (int*)&lx_start[nV + 1];
+		// int* d_offsets = (int*)&ly_start[local_seqLen + 1];
+		// Edge* left_x = (Edge*)&d_offsets[nV + local_seqLen + 1];
+		// Edge* left_y = (Edge*)&left_x[nE];
+		// char* seq_y = (char*)&left_y[local_seqLen];
+
+
+		int* lx_start;
+		// int* ly_start;
+		int* d_offsets;
+		Edge* left_x;
+		Edge* left_y;
+		char* seq_y;
 		
-		int offs = 0;
-		do{
-			if(offs + c < len_x+1){
-				lx_start[offs + c] = (dyn_edge_bounds_global + (nV+1) * myId)[offs+c];
-			}	
-			offs += local_seqLen+1;
-		}while(offs < len_x+1);
+		// int offs = 0;
+		// do{
+		// 	if(offs + c < len_x+1){
+		// 		lx_start[offs + c] = (dyn_edge_bounds_global + (nV+1) * myId)[offs+c];
+		// 	}	
+		// 	offs += local_seqLen+1;
+		// }while(offs < len_x+1);
 
-		if(c < len_y+1){
-			ly_start[c] = c;
-		}
-		__syncthreads();
-		int x_left_dim = lx_start[len_x];
-		int y_left_dim = ly_start[len_y];
+		lx_start = (dyn_edge_bounds_global + (nV+1) * myId);
 
-		offs = 0;
-		do{
-			if(offs + c < x_left_dim){
-				left_x[offs+c] = (dyn_edges_global + nE * myId)[offs+c];
-			}
-			offs +=local_seqLen+1;
-		}while(offs < x_left_dim);
+		// if(c < len_y+1){
+		// 	ly_start[c] = c;
+		// }
+		// __syncthreads();
 
-		offs = 0;
-		do{
-			if(offs + c < y_left_dim){
-				left_y[offs+c] = c - 1;
-			}
-			offs +=local_seqLen+1;
-		}while(offs < y_left_dim);
+		// int x_left_dim = lx_start[len_x];
+		// int y_left_dim = ly_start[len_y];
+
+		// int offs = 0;
+		// do{
+		// 	if(offs + c < x_left_dim){
+		// 		left_x[offs+c] = (dyn_edges_global + nE * myId)[offs+c];
+		// 	}
+		// 	offs +=local_seqLen+1;
+		// }while(offs < x_left_dim);
+
+		left_x = (dyn_edges_global + nE * myId);
+
+		// offs = 0;
+		// do{
+		// 	if(offs + c < ly_start[len_y]){
+		// 		left_y[offs+c] = c - 1;
+		// 	}
+		// 	offs +=local_seqLen+1;
+		// }while(offs < ly_start[len_y]);
 		
-		if(c < len_y){
-			seq_y[c] = (reads_d + y_seq_offs)[c];
-		}
+		// if(c < len_y){
+		// 	seq_y[c] = (reads_d + y_seq_offs)[c];
+		// }
 
-		offs = 0;
-		do{
-			if(offs + c < len_x+len_y+1){
-				d_offsets[c+offs] = (d_offsets_global + (nV+local_seqLen+1) * myId)[c+offs];
-			}
-			offs += local_seqLen+1;
-		}while(offs < len_x+len_y+1);
+		seq_y = (reads_d + y_seq_offs);
+
+		// offs = 0;
+		// do{
+		// 	if(offs + c < len_x+len_y+1){
+		// 		d_offsets[c+offs] = (d_offsets_global + (nV+local_seqLen+1) * myId)[c+offs];
+		// 	}
+		// 	offs += local_seqLen+1;
+		// }while(offs < len_x+len_y+1);
+
+		d_offsets = (d_offsets_global + (nV+local_seqLen+1) * myId);
 		
 		MaxCell maxc = { -999999, -1, -1 };
 		int min_d = len_x < len_y ? len_x : len_y;
@@ -443,10 +460,12 @@ __inline__ __device__ MaxCell blockReduceMax_dynamic(MaxCell cell, int num_wraps
 				int j = c + (((n - len_y < 0)-1) & (n - len_y));
 				int i = n - j;
 
-				int k = ly_start[i-1];
+				// int k = ly_start[i-1];
+				int k = i - 1;
 				int y_count = 1;
 
-				int i_prev = left_y[k] + 1;
+				// int i_prev = left_y[k] + 1;
+				int i_prev = k;
 				k = ((0 > i_prev + j - len_y)-1) & (i_prev + j - len_y);
 				int n_prev = i_prev + j;
 				int c_prev = j - k;
@@ -477,9 +496,11 @@ __inline__ __device__ MaxCell blockReduceMax_dynamic(MaxCell cell, int num_wraps
 						insert_x_x = x_count;
 					}
 
-					k = ly_start[i-1];
+					// k = ly_start[i-1];
+					k = i - 1;
 
-					int i_prev = left_y[k] + 1;
+					// int i_prev = left_y[k] + 1;
+					int i_prev = k;
 
 					k = ((0 > i_prev + j_prev - len_y)-1) & (i_prev + j_prev - len_y);
 					n_prev = i_prev + j_prev;
@@ -546,10 +567,10 @@ __inline__ __device__ MaxCell blockReduceMax_dynamic(MaxCell cell, int num_wraps
 		int wraps = ((seqLen - 1) / 32) + 1;
 		maxc = blockReduceMax_dynamic(maxc, wraps);
 		
-		if(c==0){
-			trace_back_lpo_alignment(len_x, len_y, moves_x, moves_y, left_x, left_y, lx_start, ly_start, 
-									maxc.x, maxc.y, x_to_y, y_to_x, d_offsets);
-		}
+		// if(c==0){
+		// 	trace_back_lpo_alignment(len_x, len_y, moves_x, moves_y, left_x, left_y, lx_start, ly_start, 
+		// 							maxc.x, maxc.y, x_to_y, y_to_x, d_offsets);
+		// }
 
 	} //thread execution if-end
 	
