@@ -115,8 +115,8 @@ void get_bmean_batch_result_gpu(vector<vector<string>> reads, int &c, const int 
 		numReads += reads[i].size();
 	}
 
-    // for(int i = 0; i < numReads; i++) {
-    //     printf(" %d ", T.results[i]);
-    // }
-    // printf("\n");
+    for(int i = 0; i < numReads; i++) {
+        printf(" %d ", T.results[i]);
+    }
+    printf("\n");
 }
